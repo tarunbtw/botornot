@@ -27,6 +27,22 @@ body {
   color: #232323;
 }
 
+/* Universally hide side scrollbars across all browsers while retaining full smooth scrolling */
+html,
+body,
+* {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 /* Force Geist Pixel font throughout the entire website */
 *, *::before, *::after, button, input, textarea, select {
   font-family: 'Geist Pixel', monospace;
@@ -81,6 +97,17 @@ body {
 
 .neo-btn-green:hover {
   background-color: #16a34a;
+  color: #f1eee7;
+}
+
+.neo-btn-red {
+  background-color: #ef4444;
+  color: #f1eee7;
+  border: 2px solid #232323;
+}
+
+.neo-btn-red:hover {
+  background-color: #dc2626;
   color: #f1eee7;
 }
 

@@ -1,7 +1,15 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { User } from 'lucide-react'
 
 export default function Navbar() {
+  const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const isProfilePage = pathname === '/profile'
+
+  const handleLogout = () => {
+    navigate('/')
+  }
+
   return (
     <header className="w-full bg-[#f1eee7]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
@@ -90,26 +98,57 @@ export default function Navbar() {
           >
             Turner Index
           </NavLink>
+          <NavLink
+            to="/roadmap"
+            className={({ isActive }) =>
+              `transition-colors ${
+                isActive ? 'text-[#22c55e] underline underline-offset-4 decoration-2' : 'text-[#232323] hover:text-[#22c55e]'
+              }`
+            }
+          >
+            Roadmap
+          </NavLink>
         </nav>
 
-        {/* User Status / Coins */}
+        {/* User Status / Action */}
         <div className="flex items-center gap-2.5">
-          {/* Coin Pill */}
-          <div className="flex items-center gap-1.5 bg-[#f1eee7] border-2 border-[#232323] rounded-full px-2.5 py-1 shadow-[2px_2px_0px_#232323]">
-            <div className="w-5 h-5 rounded-full bg-[#22c55e] border border-[#232323] flex items-center justify-center font-pixel text-xs text-[#232323] font-bold">
-              H
-            </div>
-            <span className="font-pixel text-xs font-bold text-[#232323]">10</span>
-          </div>
+          {isProfilePage ? (
+            /* On Profile Page: No tokens, nice LOG OUT button styled like PLAY button */
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="neo-btn neo-btn-green px-6 sm:px-8 py-2 font-pixel text-xs sm:text-sm font-bold tracking-wider rounded-lg text-[#232323] hover:scale-105 transition-all cursor-pointer"
+            >
+              LOG OUT
+            </button>
+          ) : (
+            <>
+              {/* Coin Pill (Always visible on mobile & desktop) */}
+              <NavLink
+                to="/profile"
+                title="Human Coins & Profile"
+                className="flex items-center gap-1.5 bg-[#f1eee7] border-2 border-[#232323] rounded-full px-2.5 py-1 shadow-[2px_2px_0px_#232323] hover:-translate-y-0.5 transition-transform"
+              >
+                <div className="w-5 h-5 rounded-full bg-[#22c55e] border border-[#232323] flex items-center justify-center font-pixel text-xs text-[#232323] font-bold">
+                  H
+                </div>
+                <span className="font-pixel text-xs font-bold text-[#232323]">10</span>
+              </NavLink>
 
-          {/* Profile Avatar Button using Lucide User icon */}
-          <NavLink
-            to="/turner-index"
-            title="View Turner Index & Leaderboard"
-            className="w-9 h-9 rounded-full bg-[#f1eee7] border-2 border-[#232323] flex items-center justify-center shadow-[2px_2px_0px_#232323] hover:-translate-y-0.5 transition-transform"
-          >
-            <User className="w-4 h-4 text-[#232323]" />
-          </NavLink>
+              {/* Profile Avatar Button - Hidden on mobile view, visible on sm/desktop */}
+              <NavLink
+                to="/profile"
+                title="User Profile"
+                className={({ isActive }) =>
+                  `hidden sm:flex w-9 h-9 rounded-full bg-[#f1eee7] border-2 border-[#232323] items-center justify-center shadow-[2px_2px_0px_#232323] hover:-translate-y-0.5 transition-transform ${
+                    isActive ? 'ring-2 ring-[#22c55e] bg-[#232323] text-[#22c55e]' : 'text-[#232323]'
+                  }`
+                }
+              >
+                <User className="w-4 h-4" />
+              </NavLink>
+            </>
+          )}
         </div>
       </div>
     </header>

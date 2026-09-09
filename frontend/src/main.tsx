@@ -10,8 +10,11 @@ import Blog from './pages/Blog.tsx'
 import FAQ from './pages/FAQ.tsx'
 import Contact from './pages/Contact.tsx'
 import TurnerIndex from './pages/TurnerIndex.tsx'
+import Profile from './pages/Profile.tsx'
+import Roadmap from './pages/Roadmap.tsx'
 
 import SmoothScroll from './components/SmoothScroll.tsx'
+import MobileMenu from './components/MobileMenu.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -28,10 +31,13 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/contact" element={<Contact />} />
               <Route path="/turner-index" element={<TurnerIndex />} />
               <Route path="/turing-index" element={<TurnerIndex />} />
+              <Route path="/roadmap" element={<Roadmap />} />
+              <Route path="/profile" element={<Profile />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
           <Footer />
+          <MobileMenu />
         </div>
       </SmoothScroll>
     </BrowserRouter>
