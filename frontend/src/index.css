@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+@theme {
+  --font-pixel: 'Geist Pixel', monospace;
+  --font-sans: 'Geist Pixel', monospace;
+  --font-mono: 'Geist Pixel', monospace;
+  --color-ink: #232323;
+  --color-cream: #f1eee7;
+  --color-retro-green: #22c55e;
+}
+
+:root {
+  font-family: 'Geist Pixel', monospace;
+  color: #232323;
+  background-color: #f1eee7;
+  scroll-behavior: auto;
+}
+
+html {
+  scroll-behavior: auto;
+}
+
+body {
+  font-family: 'Geist Pixel', monospace;
+  letter-spacing: 0.02em;
+  background-color: #f1eee7;
+  color: #232323;
+}
+
+/* Force Geist Pixel font throughout the entire website */
+*, *::before, *::after, button, input, textarea, select {
+  font-family: 'Geist Pixel', monospace;
+}
+
+/* Subtle Rounded Neobrutalism Components (strictly using #f1eee7, #232323, and #22c55e - NO white) */
+.neo-card {
+  background-color: #f1eee7;
+  border: 2px solid #232323;
+  border-radius: 12px;
+  box-shadow: 2.5px 2.5px 0px #232323;
+}
+
+.neo-card-dark {
+  background-color: #232323;
+  color: #f1eee7;
+  border: 2px solid #232323;
+  border-radius: 14px;
+  box-shadow: 3px 3px 0px rgba(35, 35, 35, 0.4);
+}
+
+.neo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f1eee7;
+  color: #232323;
+  border: 2px solid #232323;
+  border-radius: 8px;
+  box-shadow: 2px 2px 0px #232323;
+  transition: all 0.1s ease-in-out;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 700;
+}
+
+.neo-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px #232323;
+}
+
+.neo-btn:active {
+  transform: translate(1.5px, 1.5px);
+  box-shadow: 0.5px 0.5px 0px #232323;
+}
+
+.neo-btn-green {
+  background-color: #22c55e;
+  color: #232323;
+  border: 2px solid #232323;
+}
+
+.neo-btn-green:hover {
+  background-color: #16a34a;
+  color: #f1eee7;
+}
+
+.neo-btn-dark {
+  background-color: #232323;
+  color: #f1eee7;
+  border: 2px solid #232323;
+}
+
+.font-pixel {
+  font-family: 'Geist Pixel', monospace;
+}
+
+/* Marquee animation for Turner Index */
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 25s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
