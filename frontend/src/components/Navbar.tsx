@@ -1,13 +1,24 @@
+import { useState, useEffect } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { User } from 'lucide-react'
+import { logout, fetchMe } from '../lib/api.js'
 
 export default function Navbar() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
+  const [coins, setCoins] = useState<number | null>(null)
   const isProfilePage = pathname === '/profile'
 
-  const handleLogout = () => {
+  useEffect(() => {
+    fetchMe().then((me) => {
+      if (me) setCoins(me.tokenBalance)
+    })
+  }, [pathname])
+
+  const handleLogout = async () => {
+    await logout()
     navigate('/')
+    window.location.reload()
   }
 
   return (
@@ -132,7 +143,7 @@ export default function Navbar() {
                 <div className="w-5 h-5 rounded-full bg-[#22c55e] border border-[#232323] flex items-center justify-center font-pixel text-xs text-[#232323] font-bold">
                   H
                 </div>
-                <span className="font-pixel text-xs font-bold text-[#232323]">10</span>
+                <span className="font-pixel text-xs font-bold text-[#232323]">{coins ?? 10}</span>
               </NavLink>
 
               {/* Profile Avatar Button - Hidden on mobile view, visible on sm/desktop */}

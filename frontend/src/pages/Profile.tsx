@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Dithering } from '@paper-design/shaders-react'
@@ -10,25 +10,187 @@ import {
   Trash2,
   Sparkles,
   X,
+  LogIn,
 } from 'lucide-react'
+import { fetchMe, fetchStats, deleteAccount, logout, type UserProfileResponse } from '../lib/api.js'
+import { authClient } from '../lib/auth-client.js'
 
 export default function Profile() {
   const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  // 6-character user ID
-  const userId = 'nsapw2'
+  const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState<UserProfileResponse | null>(null)
+
+  const [stats, setStats] = useState({
+    publicId: '',
+    tokenBalance: 0,
+    isPro: false,
+    totalGames: 0,
+    winPercentage: 0,
+    winsLast24Hours: 0,
+  })
+
+  useEffect(() => {
+    let mounted = true
+    Promise.all([fetchMe(), fetchStats()])
+      .then(([meRes, statsRes]) => {
+        if (!mounted) return
+        if (meRes) setUser(meRes)
+        if (statsRes) setStats(statsRes)
+      })
+      .catch(() => {
+        if (mounted) setUser(null)
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await authClient.signIn.social({
+        provider: 'google',
+        callbackURL: window.location.href,
+      })
+    } catch (err) {
+      console.error('Google sign-in error:', err)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    setIsLoading(true)
+    const success = await deleteAccount()
+    setIsLoading(false)
+    setShowDeleteModal(false)
+    if (success) {
+      setUser(null)
+      setStats({
+        publicId: '',
+        tokenBalance: 0,
+        isPro: false,
+        totalGames: 0,
+        winPercentage: 0,
+        winsLast24Hours: 0,
+      })
+      navigate('/')
+      window.location.reload()
+    } else {
+      alert('Failed to delete account. Please try again.')
+    }
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    setUser(null)
+    navigate('/')
+    window.location.reload()
+  }
+
+  const userId = user?.publicId || stats.publicId
 
   const handleCopy = () => {
+    if (!userId) return
     navigator.clipboard.writeText(userId)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
+  if (isLoading) {
+    return (
+      <div className="max-w-md mx-auto my-20 p-8 rounded-2xl neo-card bg-[#f1eee7] text-center">
+        <div className="w-10 h-10 rounded-full border-4 border-[#22c55e] border-t-transparent animate-spin mx-auto mb-4" />
+        <p className="font-pixel text-xs font-bold text-[#232323]">LOADING ACCOUNT...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto my-14 px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-6 sm:p-8 rounded-2xl neo-card bg-[#f1eee7] border-2 border-[#232323] shadow-[4px_4px_0px_#232323] text-center"
+        >
+          {/* Avatar Icon (Shader sphere) */}
+          <div
+            className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden mx-auto mb-5 flex-shrink-0"
+            style={{
+              borderRadius: '9999px',
+              clipPath: 'circle(50% at 50% 50%)',
+              WebkitClipPath: 'circle(50% at 50% 50%)',
+            }}
+          >
+            <Dithering
+              width="100%"
+              height="100%"
+              colorBack="rgba(0, 0, 0, 0)"
+              colorFront="#232323"
+              shape="sphere"
+              type="4x4"
+              size={2.5}
+              speed={1}
+              scale={1.0}
+              className="w-full h-full"
+              style={{
+                borderRadius: '9999px',
+                clipPath: 'circle(50% at 50% 50%)',
+                WebkitClipPath: 'circle(50% at 50% 50%)',
+              }}
+            />
+          </div>
+
+          <h1 className="font-pixel text-xl sm:text-2xl font-bold text-[#232323] mb-2 tracking-wide">
+            ACCOUNT LOGIN
+          </h1>
+          <p className="font-pixel text-xs text-slate-600 mb-6 max-w-xs mx-auto leading-relaxed font-bold">
+            Sign in with your Google account to track your Turing test results, climb the leaderboard, and earn Human Coins.
+          </p>
+
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              className="w-full neo-btn neo-btn-green py-3 px-4 font-pixel text-xs sm:text-sm font-bold text-[#232323] rounded-xl flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform cursor-pointer"
+            >
+              <LogIn className="w-4 h-4 text-[#232323]" />
+              <span>SIGN IN WITH GOOGLE</span>
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 pt-6 pb-12 sm:pt-10 sm:pb-16">
-      {/* User Header: Shader Avatar Icon + 6-Char User ID */}
+      {user.id.startsWith('guest_') && (
+        <motion.div
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 p-4 rounded-xl bg-[#232323] text-[#f1eee7] border-2 border-[#232323] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-[3px_3px_0px_rgba(35,35,35,0.4)]"
+        >
+          <div className="flex items-center gap-2 text-xs font-pixel font-bold">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
+            <span>PLAYING AS GUEST — LINK GOOGLE TO SAVE YOUR COINS &amp; STATS</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            className="neo-btn neo-btn-green px-4 py-2 text-xs font-pixel font-bold text-[#232323] rounded-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap hover:scale-105 transition-all"
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            <span>SIGN IN WITH GOOGLE</span>
+          </button>
+        </motion.div>
+      )}
+
+      {/* User Header: Shader Avatar Icon + User ID */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -111,7 +273,7 @@ export default function Profile() {
             {/* Status Bar */}
             <div className="flex items-center justify-between p-3 rounded-lg bg-[#232323] text-[#f1eee7] mb-5 border-2 border-[#232323]">
               <span className="font-pixel text-xs sm:text-sm font-bold tracking-wider text-slate-300">
-                NOT ACTIVE
+                {stats.isPro ? 'PRO ACTIVE' : 'NOT ACTIVE'}
               </span>
               <button
                 type="button"
@@ -157,7 +319,7 @@ export default function Profile() {
                 H
               </div>
               <div className="font-pixel text-4xl sm:text-5xl font-bold text-[#232323]">
-                10
+                {stats.tokenBalance}
               </div>
             </div>
           </div>
@@ -211,7 +373,7 @@ export default function Profile() {
             Total Games:
           </span>
           <span className="font-pixel text-base sm:text-lg font-bold text-[#232323]">
-            0
+            {stats.totalGames}
           </span>
         </div>
 
@@ -220,7 +382,7 @@ export default function Profile() {
             Wins:
           </span>
           <span className="font-pixel text-base sm:text-lg font-bold text-[#232323]">
-            0%
+            {stats.winPercentage}%
           </span>
         </div>
 
@@ -229,7 +391,7 @@ export default function Profile() {
             Wins 24h:
           </span>
           <span className="font-pixel text-base sm:text-lg font-bold text-[#232323]">
-            0%
+            {stats.winsLast24Hours}
           </span>
         </div>
       </motion.div>
@@ -254,12 +416,12 @@ export default function Profile() {
         </div>
       </motion.div>
 
-      {/* Danger Zone: Delete Account Button in Red */}
+      {/* Danger Zone: Delete Account & Log Out Buttons */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.35 }}
-        className="pt-6 border-t-2 border-[#232323]/20 flex justify-start"
+        className="pt-6 border-t-2 border-[#232323]/20 flex items-center justify-between gap-4"
       >
         <button
           type="button"
@@ -267,6 +429,14 @@ export default function Profile() {
           className="neo-btn neo-btn-red px-6 sm:px-8 py-2.5 font-pixel text-xs sm:text-sm font-bold tracking-wider rounded-lg text-[#f1eee7] hover:scale-105 transition-all cursor-pointer"
         >
           DELETE ACCOUNT
+        </button>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="neo-btn px-6 sm:px-8 py-2.5 font-pixel text-xs sm:text-sm font-bold tracking-wider rounded-lg bg-[#232323] text-[#f1eee7] hover:scale-105 transition-all cursor-pointer"
+        >
+          LOG OUT
         </button>
       </motion.div>
 
@@ -368,13 +538,10 @@ export default function Profile() {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  setShowDeleteModal(false)
-                  navigate('/')
-                }}
-                className="neo-btn neo-btn-red flex-1 py-3 font-pixel text-xs font-bold rounded-lg border-2 border-[#232323]"
+                onClick={handleDeleteAccount}
+                className="neo-btn neo-btn-red flex-1 py-3 font-pixel text-xs font-bold rounded-lg border-2 border-[#232323] cursor-pointer"
               >
-                YES, RESET ACCOUNT
+                YES, DELETE ACCOUNT
               </button>
               <button
                 type="button"

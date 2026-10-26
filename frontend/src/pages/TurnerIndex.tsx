@@ -1,9 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Smartphone, Monitor, Tablet } from 'lucide-react'
+import { fetchGlobalStats, type GlobalStats } from '../lib/api.js'
 
 export default function TurnerIndex() {
   const [timeframe, setTimeframe] = useState<'24h' | '7d' | '14d'>('7d')
+  const [stats, setStats] = useState<GlobalStats>({
+    gamesPlayed24h: 27480,
+    aiWinRate24h: 37,
+    humanAccuracyRate: 63,
+  })
+
+  useEffect(() => {
+    fetchGlobalStats().then((st) => {
+      if (st) setStats(st)
+    })
+  }, [])
 
   return (
     <div className="w-full pb-20">
@@ -11,17 +23,17 @@ export default function TurnerIndex() {
       <div className="w-full overflow-hidden border-b-2 border-[#232323] bg-[#232323] text-[#f1eee7] py-2 text-xs">
         <div className="animate-marquee flex items-center space-x-8 whitespace-nowrap">
           <span className="flex items-center gap-2">
-            <span className="text-[#22c55e]">●</span> TURNER INDEX: <strong className="text-[#22c55e]">37%</strong>
+            <span className="text-[#22c55e]">●</span> TURNER INDEX: <strong className="text-[#22c55e]">{stats.aiWinRate24h}%</strong>
             <span className="text-[#22c55e]">▲ +2%</span>
           </span>
           <span>|</span>
           <span className="flex items-center gap-2">
-            HUMAN WIN: <strong className="text-[#f1eee7]">63%</strong>
+            HUMAN WIN: <strong className="text-[#f1eee7]">{stats.humanAccuracyRate}%</strong>
             <span className="text-rose-400">▼ -2%</span>
           </span>
           <span>|</span>
           <span>
-            GAMES TODAY: <strong className="text-[#f1eee7]">27,475</strong>
+            GAMES TODAY: <strong className="text-[#f1eee7]">{stats.gamesPlayed24h.toLocaleString()}</strong>
           </span>
           <span>|</span>
           <span>

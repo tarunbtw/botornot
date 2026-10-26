@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Brain,
@@ -11,8 +11,10 @@ import {
   Zap,
   Target,
   Sparkles,
-  Search,
+  Search as SearchIcon,
 } from 'lucide-react'
+import { fetchGlobalStats, type GlobalStats } from './lib/api.js'
+
 
 // --- Types ---
 interface Article {
@@ -98,7 +100,7 @@ const LEADERBOARD_USERS = [
   { rank: 2, name: 'CyberIntuition', score: '2,490', winRate: '82%', Icon: Zap },
   { rank: 3, name: 'Socrates42', score: '2,150', winRate: '79%', Icon: Target },
   { rank: 4, name: 'PixelWhisperer', score: '1,980', winRate: '76%', Icon: Sparkles },
-  { rank: 5, name: 'Synthetik', score: '1,820', winRate: '74%', Icon: Search },
+  { rank: 5, name: 'Synthetik', score: '1,820', winRate: '74%', Icon: SearchIcon },
 ]
 
 // --- Retro Pixel Art Avatar (Half Human, Half Cyborg) ---
@@ -117,13 +119,6 @@ function CyborgPixelAvatar() {
 
         {/* Left Side: Robot / Cyborg */}
         <rect x="5" y="7" width="9" height="13" fill="#f1eee7" />
-        <rect x="5" y="7" width="2" height="13" fill="#232323" />
-        <rect x="4" y="10" width="2" height="5" fill="#22c55e" />
-        <rect x="7" y="10" width="4" height="3" fill="#232323" />
-        <rect x="8" y="11" width="2" height="2" fill="#22c55e" />
-        <rect x="7" y="14" width="5" height="1" fill="#22c55e" />
-        <rect x="9" y="15" width="1" height="3" fill="#22c55e" />
-        <rect x="7" y="17" width="4" height="1" fill="#232323" />
         <rect x="8" y="18" width="2" height="1" fill="#22c55e" />
 
         {/* Right Side: Human Face */}
@@ -151,18 +146,21 @@ function CyborgPixelAvatar() {
 }
 
 export default function App() {
+  const navigate = useNavigate()
   const [openFaq, setOpenFaq] = useState<number | null>(0)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [activeArticle, setActiveArticle] = useState<Article | null>(null)
-  const [isConnecting, setIsConnecting] = useState(false)
+  const [globalStats, setGlobalStats] = useState<GlobalStats>({
+    gamesPlayed24h: 27523,
+    aiWinRate24h: 37,
+    humanAccuracyRate: 63,
+  })
 
-  // Start game: clean in-place connection state with NO popup modal
-  const handleStartGame = () => {
-    setIsConnecting(true)
-    setTimeout(() => {
-      setIsConnecting(false)
-    }, 2000)
-  }
+  useEffect(() => {
+    fetchGlobalStats().then((st) => {
+      if (st) setGlobalStats(st)
+    })
+  }, [])
 
   const toggleFaq = (index: number) => {
     setOpenFaq(openFaq === index ? null : index)
@@ -191,19 +189,19 @@ export default function App() {
                   Social Turing Game
                 </h1>
 
-                {/* Big START GAME Button (No popup/modal) */}
+                {/* Big START GAME Button (Navigates directly to new /search page) */}
                 <div className="flex justify-center mb-6">
                   <button
                     id="start-game-button"
                     type="button"
-                    onClick={handleStartGame}
-                    className="neo-btn neo-btn-green px-8 py-4 font-pixel text-lg sm:text-xl font-bold tracking-wider rounded-xl hover:scale-105 transition-all text-[#232323]"
+                    onClick={() => navigate('/search')}
+                    className="neo-btn neo-btn-green px-8 py-4 font-pixel text-lg sm:text-xl font-bold tracking-wider rounded-xl hover:scale-105 transition-all text-[#232323] cursor-pointer"
                   >
-                    {isConnecting ? 'MATCHING QUEUE...' : 'START GAME'}
+                    START GAME
                   </button>
                 </div>
 
-                <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
+                <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed font-bold">
                   Chat with someone for two minutes. Try to figure out if it was a human or an AI bot. Think you can tell the difference?
                 </p>
               </div>
@@ -283,11 +281,11 @@ export default function App() {
           {/* Stats Card 1: Games Today */}
           <div className="neo-card p-6 flex flex-col justify-between bg-[#f1eee7]">
             <span className="text-xs font-bold tracking-wider text-slate-600 uppercase">
-              Games Played Today
+              Games Played 24h
             </span>
             <div className="my-4">
               <div className="font-pixel text-4xl sm:text-5xl font-bold text-[#22c55e] tracking-tight">
-                27 523
+                {globalStats.gamesPlayed24h.toLocaleString()}
               </div>
             </div>
             <div className="pt-2 border-t border-[#232323]/20">
@@ -304,22 +302,22 @@ export default function App() {
           {/* Stats Card 2: Games Won Today */}
           <div className="neo-card p-6 flex flex-col justify-between bg-[#f1eee7]">
             <span className="text-xs font-bold tracking-wider text-slate-600 uppercase">
-              Games Won Today
+              Human Accuracy Rate 24h
             </span>
             <div className="my-4">
               <div className="flex items-baseline gap-3">
                 <div className="font-pixel text-4xl sm:text-5xl font-bold text-[#232323]">
-                  37%
+                  {globalStats.humanAccuracyRate}%
                 </div>
                 <span className="text-xs font-bold text-slate-600">
-                  Human accuracy rate
+                  AI win rate: {globalStats.aiWinRate24h}%
                 </span>
               </div>
               {/* Neobrutalist Progress Meter */}
               <div className="w-full h-5 bg-[#f1eee7] border-2 border-[#232323] rounded-md mt-3 overflow-hidden p-0.5">
                 <div
                   className="h-full bg-[#22c55e] rounded-sm transition-all duration-700"
-                  style={{ width: '37%' }}
+                  style={{ width: `${globalStats.humanAccuracyRate}%` }}
                 ></div>
               </div>
             </div>
@@ -548,9 +546,9 @@ export default function App() {
               type="button"
               onClick={() => {
                 setShowLeaderboard(false)
-                handleStartGame()
+                navigate('/search')
               }}
-              className="neo-btn neo-btn-green w-full py-3 font-pixel text-xs font-bold rounded-lg"
+              className="neo-btn neo-btn-green w-full py-3 font-pixel text-xs font-bold rounded-lg cursor-pointer"
             >
               START A ROUND &amp; CLIMB
             </button>

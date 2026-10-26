@@ -13,6 +13,9 @@ import TurnerIndex from './pages/TurnerIndex.tsx'
 import Profile from './pages/Profile.tsx'
 import Roadmap from './pages/Roadmap.tsx'
 
+import Search from './pages/Search.tsx'
+import Chat from './pages/Chat.tsx'
+
 import SmoothScroll from './components/SmoothScroll.tsx'
 import MobileMenu from './components/MobileMenu.tsx'
 
@@ -25,6 +28,9 @@ createRoot(document.getElementById('root')!).render(
           <main className="flex-1">
             <Routes>
               <Route path="/" element={<App />} />
+              <Route path="/search" element={<Search />} />
+              <Route path="/chat/:gameId" element={<Chat />} />
+              <Route path="/chat" element={<Chat />} />
               <Route path="/about" element={<About />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/faq" element={<FAQ />} />
