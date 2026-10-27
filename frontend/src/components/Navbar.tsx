@@ -1,7 +1,7 @@
 import React from 'react'
 import { CyborgAvatar } from './CyborgAvatar'
 import { CoinIcon } from './CoinIcon'
-import { Flame, Volume2, VolumeX, Trophy, Settings } from 'lucide-react'
+import { Flame, Volume2, VolumeX, Trophy, Settings, Gift } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { isSoundEnabled, setSoundEnabled } from '../lib/audio'
 
@@ -11,6 +11,8 @@ interface NavbarProps {
   onOpenLeaderboard?: () => void
   onOpenSettings?: () => void
   onHomeClick?: () => void
+  onOpenQuests?: () => void
+  unclaimedQuestsCount?: number
 }
 
 export function Navbar({
@@ -19,6 +21,8 @@ export function Navbar({
   onOpenLeaderboard,
   onOpenSettings,
   onHomeClick,
+  onOpenQuests,
+  unclaimedQuestsCount = 0,
 }: NavbarProps) {
   const [sound, setSound] = React.useState(isSoundEnabled())
 
@@ -80,10 +84,38 @@ export function Navbar({
           >
             LEADERBOARD
           </button>
+          {onOpenQuests && (
+            <button
+              onClick={onOpenQuests}
+              className="px-3 py-1 rounded-xl text-xs font-display font-black hover:bg-[#FFD100] transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <span>QUESTS</span>
+              {unclaimedQuestsCount > 0 && (
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              )}
+            </button>
+          )}
         </nav>
 
         {/* Right Action Badges */}
         <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Daily Quests Gift Button */}
+          {onOpenQuests && (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={onOpenQuests}
+              className="relative p-2 bg-[#FFD100] hover:bg-[#E6BC00] transition-colors border-3 border-black rounded-xl shadow-[3px_3px_0px_0px_#000] cursor-pointer"
+              title="Daily Quests & Check-In"
+            >
+              <Gift className="w-4 h-4 text-black" />
+              {unclaimedQuestsCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white font-mono font-black text-[10px] w-4 h-4 rounded-full flex items-center justify-center border border-black shadow-[1px_1px_0px_0px_#000] animate-bounce">
+                  {unclaimedQuestsCount}
+                </span>
+              )}
+            </motion.button>
+          )}
+
           {/* Coins Pill */}
           <motion.div
             whileHover={{ scale: 1.05 }}

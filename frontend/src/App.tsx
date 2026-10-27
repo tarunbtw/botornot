@@ -7,10 +7,18 @@ import { Matchmaking } from './screens/Matchmaking'
 import { Chat } from './screens/Chat'
 import { Guess } from './screens/Guess'
 import { Leaderboard } from './screens/Leaderboard'
+import { DailyQuestsModal } from './components/DailyQuestsModal'
 import { AnimatePresence, motion } from 'framer-motion'
 import { gameSocket, type ServerEvent } from './lib/game-socket.js'
 import { fetchMe, fetchStats } from './lib/api.js'
-import { playMatchFound } from './lib/audio'
+import { playMatchFound, playReward } from './lib/audio'
+import {
+  loadQuestsData,
+  saveQuestsData,
+  getUnclaimedCount,
+  getAdsWatchedInWindow,
+  type DailyQuestsData,
+} from './lib/quests'
 
 export default function App() {
   const [gameState, setGameState] = useState<GameState>('HOME')
@@ -41,6 +49,76 @@ export default function App() {
   const [freeExtendedMessagesLeft, setFreeExtendedMessagesLeft] = useState<number>(0)
   const [opponentTyping, setOpponentTyping] = useState<boolean>(false)
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false)
+  const [showQuestsModal, setShowQuestsModal] = useState<boolean>(false)
+  const [questsData, setQuestsData] = useState<DailyQuestsData>(() => loadQuestsData())
+
+  // Sync daily quests whenever day changes or mounts
+  useEffect(() => {
+    setQuestsData(loadQuestsData())
+  }, [])
+
+  const handleClaimQuest = (questId: string, reward: number) => {
+    setQuestsData((prev) => {
+      if (prev.claimedQuestIds.includes(questId)) return prev
+      const updated = {
+        ...prev,
+        claimedQuestIds: [...prev.claimedQuestIds, questId],
+      }
+      saveQuestsData(updated)
+      return updated
+    })
+    handleCoinsChange(coins + reward)
+    playReward()
+  }
+
+  const handleClaimLogin = (reward: number) => {
+    setQuestsData((prev) => {
+      if (prev.loginClaimedToday) return prev
+      const updated = {
+        ...prev,
+        loginClaimedToday: true,
+      }
+      saveQuestsData(updated)
+      return updated
+    })
+    handleCoinsChange(coins + reward)
+    playReward()
+  }
+
+  const handleClaimAllBonus = (reward: number) => {
+    setQuestsData((prev) => {
+      if (prev.allClaimed) return prev
+      const updated = {
+        ...prev,
+        allClaimed: true,
+      }
+      saveQuestsData(updated)
+      return updated
+    })
+    handleCoinsChange(coins + reward)
+    playReward()
+  }
+
+  // Centrally handles watching an ad and tracks 12-hour limit (max 5 ads per 12h)
+  const handleRecordAdWatched = () => {
+    const adInfo = getAdsWatchedInWindow(questsData.adWatchTimestamps)
+    if (!adInfo.canWatch) {
+      alert(`Daily limit reached: Maximum 5 ads per 12 hours. Please check back later!`)
+      return
+    }
+
+    const now = Date.now()
+    setQuestsData((prev) => {
+      const updated = {
+        ...prev,
+        adsWatchedToday: prev.adsWatchedToday + 1,
+        adWatchTimestamps: [...(prev.adWatchTimestamps || []), now],
+      }
+      saveQuestsData(updated)
+      return updated
+    })
+    handleCoinsChange(coins + 10)
+  }
 
   const handleForfeitMatch = () => {
     setStreak((prev) => Math.max(0, prev - 1))
@@ -270,6 +348,17 @@ export default function App() {
       setStreak(0)
       setLosses((prev) => prev + 1)
     }
+
+    // Update Daily Quests progress (Matches played and correct guesses)
+    setQuestsData((prev) => {
+      const updated = {
+        ...prev,
+        matchesPlayed: prev.matchesPlayed + 1,
+        correctGuesses: isCorrect ? prev.correctGuesses + 1 : prev.correctGuesses,
+      }
+      saveQuestsData(updated)
+      return updated
+    })
   }
 
   // --- Handle Extend Chat ---
@@ -296,6 +385,8 @@ export default function App() {
             setUserGuess(null)
             setGameState('HOME')
           }}
+          onOpenQuests={() => setShowQuestsModal(true)}
+          unclaimedQuestsCount={getUnclaimedCount(questsData)}
         />
       )}
 
@@ -323,6 +414,9 @@ export default function App() {
                 onOpenLeaderboard={() => setGameState('LEADERBOARD')}
                 showSettings={showSettingsModal}
                 onCloseSettings={() => setShowSettingsModal(false)}
+                onOpenQuests={() => setShowQuestsModal(true)}
+                unclaimedQuestsCount={getUnclaimedCount(questsData)}
+                loginStreak={questsData.loginStreak}
               />
             </motion.div>
           )}
@@ -359,7 +453,7 @@ export default function App() {
                 onEndExtendedChat={() => setGameState('GUESS')}
                 opponentTyping={opponentTyping}
                 onForfeitMatch={handleForfeitMatch}
-                onWatchAdForCoins={() => handleCoinsChange(coins + 10)}
+                onWatchAdForCoins={handleRecordAdWatched}
               />
             </motion.div>
           )}
@@ -382,6 +476,7 @@ export default function App() {
                 streak={streak}
                 coinAnimAmount={coinAnimAmount}
                 messages={chatMessages}
+                onOpenQuests={() => setShowQuestsModal(true)}
                 onPlayAgain={() => {
                   setUserGuess(null)
                   setGameState('MATCHMAKING')
@@ -412,6 +507,22 @@ export default function App() {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Daily Quests, 7-Day Login Streak & 12h Sponsor Ad Modal */}
+      <DailyQuestsModal
+        isOpen={showQuestsModal}
+        onClose={() => setShowQuestsModal(false)}
+        questsData={questsData}
+        onClaimQuest={handleClaimQuest}
+        onClaimLogin={handleClaimLogin}
+        onClaimAllBonus={handleClaimAllBonus}
+        onWatchAd={handleRecordAdWatched}
+        onStartMatch={() => {
+          setShowQuestsModal(false)
+          setUserGuess(null)
+          setGameState('MATCHMAKING')
+        }}
+      />
     </div>
   )
 }

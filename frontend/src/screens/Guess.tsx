@@ -15,7 +15,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { playCorrect, playIncorrect } from '../lib/audio'
 
-import { ChevronDown, ChevronUp, MessageSquare, Copy, Check } from 'lucide-react'
+import { ChevronDown, ChevronUp, MessageSquare, Copy, Check, Gift } from 'lucide-react'
 import type { Message } from '../types'
 
 interface GuessProps {
@@ -29,6 +29,7 @@ interface GuessProps {
   onPlayAgain: () => void
   onHome: () => void
   messages?: Message[]
+  onOpenQuests?: () => void
 }
 
 export const Guess: React.FC<GuessProps> = ({
@@ -42,6 +43,7 @@ export const Guess: React.FC<GuessProps> = ({
   onPlayAgain,
   onHome,
   messages = [],
+  onOpenQuests,
 }) => {
   const [watchingVideo, setWatchingVideo] = useState(false)
   const [showTranscript, setShowTranscript] = useState(false)
@@ -318,6 +320,23 @@ export const Guess: React.FC<GuessProps> = ({
                       🔥 {streak}
                     </span>
                   </div>
+
+                  {/* Daily Quests Shortcut */}
+                  {onOpenQuests && (
+                    <button
+                      type="button"
+                      onClick={onOpenQuests}
+                      className="w-full flex items-center justify-between p-2.5 bg-[#FFF8D6] hover:bg-[#FFE57F] border-2 border-black rounded-xl text-xs font-mono font-black text-black transition-colors cursor-pointer shadow-[2px_2px_0px_0px_#000]"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Gift className="w-4 h-4 text-black" />
+                        <span>Daily Quests Progressed!</span>
+                      </span>
+                      <span className="bg-[#FFD100] px-2 py-0.5 rounded border border-black text-[10px]">
+                        Check Rewards →
+                      </span>
+                    </button>
+                  )}
 
                   {/* Share Result Snippet */}
                   <button

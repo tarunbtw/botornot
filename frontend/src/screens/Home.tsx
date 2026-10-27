@@ -13,6 +13,7 @@ import {
   BookOpen,
   ArrowRight,
   Activity,
+  Gift,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { isSoundEnabled, setSoundEnabled } from '../lib/audio'
@@ -28,6 +29,9 @@ interface HomeProps {
   onOpenLeaderboard: () => void
   showSettings?: boolean
   onCloseSettings?: () => void
+  onOpenQuests?: () => void
+  unclaimedQuestsCount?: number
+  loginStreak?: number
 }
 
 
@@ -65,6 +69,9 @@ export const Home: React.FC<HomeProps> = ({
   onOpenLeaderboard,
   showSettings: externalShowSettings,
   onCloseSettings,
+  onOpenQuests,
+  unclaimedQuestsCount = 0,
+  loginStreak = 1,
 }) => {
   const [internalShowSettings, setInternalShowSettings] = useState(false)
   const showSettings = externalShowSettings ?? internalShowSettings
@@ -127,6 +134,47 @@ export const Home: React.FC<HomeProps> = ({
             Play Now
           </Button>
         </Card>
+
+        {/* Mobile Daily Quests & Check-In Widget */}
+        {onOpenQuests && (
+          <div
+            onClick={onOpenQuests}
+            className="w-full bg-[#FFF8D6] hover:bg-[#FFE57F] transition-all p-3.5 rounded-3xl border-3 border-black shadow-[4px_4px_0px_0px_#000] cursor-pointer flex items-center justify-between gap-3 relative overflow-hidden"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-[#FFD100] rounded-2xl border-2 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_#000] shrink-0">
+                <Gift className="w-6 h-6 text-black" />
+              </div>
+              <div className="text-left">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-display font-black text-sm text-black uppercase">
+                    Daily Quests
+                  </span>
+                  <span className="font-mono text-[10px] font-black bg-black text-[#FFD100] px-1.5 py-0.5 rounded">
+                    Day {loginStreak}
+                  </span>
+                </div>
+                <p className="text-[11px] font-bold text-neutral-700 leading-tight">
+                  {unclaimedQuestsCount > 0
+                    ? `🎉 ${unclaimedQuestsCount} reward${unclaimedQuestsCount > 1 ? 's' : ''} ready to claim!`
+                    : 'Earn up to +75 Coins daily'}
+                </p>
+              </div>
+            </div>
+
+            <Button
+              variant={unclaimedQuestsCount > 0 ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                onOpenQuests()
+              }}
+              className="py-1.5 px-3 text-xs font-black uppercase tracking-wider shrink-0 border-2 shadow-[2px_2px_0px_0px_#000]"
+            >
+              {unclaimedQuestsCount > 0 ? 'Claim!' : 'View'}
+            </Button>
+          </div>
+        )}
 
         {/* Stats Row */}
         <div className="grid grid-cols-2 gap-3 w-full">
@@ -243,6 +291,23 @@ export const Home: React.FC<HomeProps> = ({
                     <Trophy className="w-5 h-5 text-[#FFD100] fill-[#FFD100]" />
                     <span>Ranks</span>
                   </Button>
+                  {onOpenQuests && (
+                    <Button
+                      variant={unclaimedQuestsCount > 0 ? 'primary' : 'secondary'}
+                      size="xl"
+                      onClick={onOpenQuests}
+                      className="py-4 px-5 text-sm font-black border-4 border-black shadow-[5px_5px_0px_0px_#000] relative"
+                      title="Daily Quests & Check-In"
+                    >
+                      <Gift className="w-5 h-5 text-black" />
+                      <span>Quests</span>
+                      {unclaimedQuestsCount > 0 && (
+                        <span className="absolute -top-2 -right-2 bg-red-500 text-white font-mono font-black text-[11px] w-5 h-5 rounded-full flex items-center justify-center border-2 border-black shadow-[1px_1px_0px_0px_#000] animate-bounce">
+                          {unclaimedQuestsCount}
+                        </span>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
 

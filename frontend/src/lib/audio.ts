@@ -92,3 +92,13 @@ export function playIncorrect() {
   setTimeout(() => playTone(250, 'sawtooth', 0.2, 0.1), 150)
   setTimeout(() => playTone(200, 'sawtooth', 0.4, 0.15), 300)
 }
+
+export function playReward() {
+  if (!soundEnabled) return
+  vibrate([80, 40, 80, 40, 150])
+  playTone(440, 'triangle', 0.08, 0.1) // A4
+  setTimeout(() => playTone(554.37, 'triangle', 0.08, 0.12), 70) // C#5
+  setTimeout(() => playTone(659.25, 'triangle', 0.1, 0.12), 140) // E5
+  setTimeout(() => playTone(880, 'triangle', 0.25, 0.15), 210) // A5
+}
+
