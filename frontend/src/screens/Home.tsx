@@ -81,6 +81,7 @@ export const Home: React.FC<HomeProps> = ({
   }
   const [activeArticle, setActiveArticle] = useState<{ title: string; summary: string } | null>(null)
   const [sound, setSound] = useState(isSoundEnabled())
+  const [isAdCollapsed, setIsAdCollapsed] = useState(false)
 
   const toggleSound = () => {
     const next = !sound
@@ -94,21 +95,23 @@ export const Home: React.FC<HomeProps> = ({
   return (
     <div className="w-full select-none">
       {/* ============================================================ */}
-      {/* 📱 MOBILE VIEW: The Classic Mobile-First Layout from the App */}
+      {/* 📱 MOBILE VIEW: Optimized, High-Conversion Layout */}
       {/* ============================================================ */}
-      <div className="block lg:hidden max-w-md mx-auto px-4 py-4 space-y-4">
-        {/* Mobile Hero Header */}
-        <div className="flex flex-col items-center text-center pt-2">
-          <CyborgAvatar size="lg" className="mb-2" />
-          <h1 className="text-4xl font-display font-black leading-[0.9] tracking-tighter uppercase mb-2 drop-shadow-[3px_3px_0px_rgba(255,209,0,1)]">
-            Bot
-            <br />
-            <span className="text-[#FFD100] drop-shadow-[3px_3px_0px_rgba(0,0,0,1)] [-webkit-text-stroke:2px_black]">
-              OR Not?
+      <div className="block lg:hidden max-w-md mx-auto px-4 pt-2.5 pb-24 space-y-3.5">
+        {/* Sleek Mobile Header (Compact & High Impact) */}
+        <div className="flex flex-col items-center text-center pt-1 pb-0.5">
+          <div className="inline-flex items-center gap-1.5 bg-[#FFD100] border-2 border-black rounded-full px-3 py-0.5 shadow-[2px_2px_0px_0px_#000] mb-2 font-mono text-[10px] font-black uppercase">
+            <Sparkles className="w-3 h-3 text-black fill-black" />
+            <span>2-Min Social Turing Game</span>
+          </div>
+          <h1 className="text-3xl font-display font-black leading-tight tracking-tight uppercase text-black mb-1">
+            Human <span className="text-neutral-500 font-medium">or</span>{' '}
+            <span className="text-black bg-[#FFD100] px-2 py-0.5 border-2 border-black rounded-xl shadow-[2px_2px_0px_0px_#000]">
+              Bot?
             </span>
           </h1>
-          <p className="text-xs font-bold text-neutral-700 max-w-[260px] mx-auto">
-            Can you spot the AI in 2 minutes?
+          <p className="text-xs font-bold text-neutral-600 max-w-[280px]">
+            Chat 120s anonymously. Can you spot who's talking?
           </p>
         </div>
 
@@ -232,10 +235,34 @@ export const Home: React.FC<HomeProps> = ({
           </ol>
         </div>
 
-        {/* Mobile Persistent Banner Ad */}
-        <div className="pt-2 pb-4">
-          <AdSlot format="mobile_banner" id="mobile-home-ad" />
-        </div>
+        {/* Mobile Sticky Bottom Sponsored Ad (Unobtrusive floating dock) */}
+        {!isAdCollapsed ? (
+          <div className="fixed bottom-0 left-0 right-0 z-30 lg:hidden pointer-events-none pb-2 px-3">
+            <div className="max-w-md mx-auto pointer-events-auto bg-[#FFFDF5]/95 backdrop-blur-md border-3 border-black rounded-2xl p-2 shadow-[0_-4px_0_0_rgba(0,0,0,1)] flex flex-col items-center justify-center relative">
+              <button
+                type="button"
+                onClick={() => setIsAdCollapsed(true)}
+                className="absolute -top-3 right-3 bg-white hover:bg-neutral-100 border-2 border-black text-black px-2 py-0.5 rounded-full font-mono text-[10px] font-black shadow-[1px_1px_0px_0px_#000] cursor-pointer flex items-center gap-1"
+                title="Minimize ad"
+              >
+                <span>✕</span>
+                <span>Hide</span>
+              </button>
+              <AdSlot format="mobile_banner" id="mobile-home-sticky-ad" />
+            </div>
+          </div>
+        ) : (
+          <div className="fixed bottom-3 right-4 z-30 lg:hidden">
+            <button
+              type="button"
+              onClick={() => setIsAdCollapsed(false)}
+              className="bg-[#FFD100] hover:bg-[#E6BC00] border-2 border-black text-black px-3 py-1 rounded-full font-mono text-[10px] font-black shadow-[2px_2px_0px_0px_#000] cursor-pointer flex items-center gap-1 active:translate-y-0.5"
+            >
+              <span>▲</span>
+              <span>Show Sponsor</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ============================================================ */}
