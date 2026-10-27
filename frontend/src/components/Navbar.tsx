@@ -1,164 +1,145 @@
-import { useState, useEffect } from 'react'
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { User } from 'lucide-react'
-import { logout, fetchMe } from '../lib/api.js'
+import React from 'react'
+import { CyborgAvatar } from './CyborgAvatar'
+import { CoinIcon } from './CoinIcon'
+import { Flame, Volume2, VolumeX, Trophy, Settings } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { isSoundEnabled, setSoundEnabled } from '../lib/audio'
 
-export default function Navbar() {
-  const { pathname } = useLocation()
-  const navigate = useNavigate()
-  const [coins, setCoins] = useState<number | null>(null)
-  const isProfilePage = pathname === '/profile'
+interface NavbarProps {
+  coins: number
+  streak: number
+  onOpenLeaderboard?: () => void
+  onOpenSettings?: () => void
+  onHomeClick?: () => void
+}
 
-  useEffect(() => {
-    fetchMe().then((me) => {
-      if (me) setCoins(me.tokenBalance)
-    })
-  }, [pathname])
+export function Navbar({
+  coins,
+  streak,
+  onOpenLeaderboard,
+  onOpenSettings,
+  onHomeClick,
+}: NavbarProps) {
+  const [sound, setSound] = React.useState(isSoundEnabled())
 
-  const handleLogout = async () => {
-    await logout()
-    navigate('/')
-    window.location.reload()
+  const toggleSound = () => {
+    const next = !sound
+    setSound(next)
+    setSoundEnabled(next)
+  }
+
+  const handleScrollToHowItWorks = () => {
+    onHomeClick?.()
+    setTimeout(() => {
+      const el = document.getElementById('how-it-works')
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }, 60)
   }
 
   return (
-    <header className="w-full bg-[#f1eee7]">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-        {/* Refined Bold Logo: "bot or" line 1, "not?" line 2 */}
-        <NavLink to="/" className="flex flex-col group leading-none select-none py-1">
-          <span
-            className="font-pixel font-black text-xl sm:text-2xl tracking-tight text-[#232323] "
-            style={{
-              WebkitTextStroke: '0.8px #232323',
-              textShadow: '0.8px 0 0 #232323, 0 0.8px 0 #232323',
-            }}
-          >
-            Bot or
-          </span>
-          <span
-            className="font-pixel font-black text-xl sm:text-2xl tracking-tight text-[#22c55e]  -mt-0.5"
-            style={{
-              WebkitTextStroke: '0.8px #22c55e',
-              textShadow: '0.8px 0 0 #22c55e, 0 0.8px 0 #22c55e',
-            }}
-          >
-            not?
-          </span>
-        </NavLink>
+    <header className="sticky top-0 z-40 w-full bg-[#FFFDF5]/95 backdrop-blur-md border-b-4 border-black px-4 sm:px-6 lg:px-8 py-2.5">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+        {/* Logo with Yellow & White Cyborg Avatar */}
+        <div
+          onClick={onHomeClick}
+          className="flex items-center gap-3 cursor-pointer group select-none"
+        >
+          <CyborgAvatar size="sm" />
+          <div className="flex flex-col leading-none">
+            <span className="font-display font-black text-xl sm:text-2xl tracking-tight text-black flex items-center gap-1.5">
+              Bot
+              <span className="text-black bg-[#FFD100] px-2 py-0.5 border-2 border-black rounded-xl shadow-[2px_2px_0px_0px_#000]">
+                OR Not?
+              </span>
+            </span>
+            <span className="font-mono text-[10px] font-bold text-neutral-600 mt-1 hidden sm:inline">
+              THE SOCIAL TURING EXPERIMENT • 2-MIN CHAT
+            </span>
+          </div>
+        </div>
 
-        {/* Desktop Nav Links */}
-        <nav className="hidden md:flex items-center space-x-6 text-xs sm:text-sm font-bold">
-          <NavLink
-            to="/"
-            end
-            className={({ isActive }) =>
-              `transition-colors ${
-                isActive ? 'text-[#22c55e] underline underline-offset-4 decoration-2' : 'text-[#232323] hover:text-[#22c55e]'
-              }`
-            }
+        {/* Center Quick Navigation (Desktop) */}
+        <nav className="hidden md:flex items-center gap-1 bg-white border-2 border-black rounded-2xl px-2 py-1 shadow-[2px_2px_0px_0px_#000]">
+          <button
+            onClick={onHomeClick}
+            className="px-3 py-1 rounded-xl text-xs font-display font-black hover:bg-[#FFD100] transition-colors cursor-pointer"
           >
-            Home
-          </NavLink>
-          <NavLink
-            to="/about"
-            className={({ isActive }) =>
-              `transition-colors ${
-                isActive ? 'text-[#22c55e] underline underline-offset-4 decoration-2' : 'text-[#232323] hover:text-[#22c55e]'
-              }`
-            }
+            PLAY
+          </button>
+          <button
+            onClick={handleScrollToHowItWorks}
+            className="px-3 py-1 rounded-xl text-xs font-display font-black hover:bg-[#FFD100] transition-colors cursor-pointer"
           >
-            About
-          </NavLink>
-          <NavLink
-            to="/blog"
-            className={({ isActive }) =>
-              `transition-colors ${
-                isActive ? 'text-[#22c55e] underline underline-offset-4 decoration-2' : 'text-[#232323] hover:text-[#22c55e]'
-              }`
-            }
+            HOW IT WORKS
+          </button>
+          <button
+            onClick={onOpenLeaderboard}
+            className="px-3 py-1 rounded-xl text-xs font-display font-black hover:bg-[#FFD100] transition-colors cursor-pointer"
           >
-            Blog
-          </NavLink>
-          <NavLink
-            to="/faq"
-            className={({ isActive }) =>
-              `transition-colors ${
-                isActive ? 'text-[#22c55e] underline underline-offset-4 decoration-2' : 'text-[#232323] hover:text-[#22c55e]'
-              }`
-            }
-          >
-            FAQ
-          </NavLink>
-          <NavLink
-            to="/contact"
-            className={({ isActive }) =>
-              `transition-colors ${
-                isActive ? 'text-[#22c55e] underline underline-offset-4 decoration-2' : 'text-[#232323] hover:text-[#22c55e]'
-              }`
-            }
-          >
-            Contact
-          </NavLink>
-          <NavLink
-            to="/turner-index"
-            className={({ isActive }) =>
-              `transition-colors ${
-                isActive ? 'text-[#22c55e] underline underline-offset-4 decoration-2' : 'text-[#232323] hover:text-[#22c55e]'
-              }`
-            }
-          >
-            Turner Index
-          </NavLink>
-          <NavLink
-            to="/roadmap"
-            className={({ isActive }) =>
-              `transition-colors ${
-                isActive ? 'text-[#22c55e] underline underline-offset-4 decoration-2' : 'text-[#232323] hover:text-[#22c55e]'
-              }`
-            }
-          >
-            Roadmap
-          </NavLink>
+            LEADERBOARD
+          </button>
         </nav>
 
-        {/* User Status / Action */}
-        <div className="flex items-center gap-2.5">
-          {isProfilePage ? (
-            /* On Profile Page: No tokens, nice LOG OUT button styled like PLAY button */
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="neo-btn neo-btn-green px-6 sm:px-8 py-2 font-pixel text-xs sm:text-sm font-bold tracking-wider rounded-lg text-[#232323] hover:scale-105 transition-all cursor-pointer"
-            >
-              LOG OUT
-            </button>
-          ) : (
-            <>
-              {/* Coin Pill (Always visible on mobile & desktop) */}
-              <NavLink
-                to="/profile"
-                title="Human Coins & Profile"
-                className="flex items-center gap-1.5 bg-[#f1eee7] border-2 border-[#232323] rounded-full px-2.5 py-1 shadow-[2px_2px_0px_#232323] hover:-translate-y-0.5 transition-transform"
-              >
-                <div className="w-5 h-5 rounded-full bg-[#22c55e] border border-[#232323] flex items-center justify-center font-pixel text-xs text-[#232323] font-bold">
-                  H
-                </div>
-                <span className="font-pixel text-xs font-bold text-[#232323]">{coins ?? 10}</span>
-              </NavLink>
+        {/* Right Action Badges */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Coins Pill */}
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className="flex items-center gap-1.5 bg-[#FFD100] border-3 border-black rounded-xl px-2.5 sm:px-3.5 py-1.5 font-mono font-black text-xs sm:text-sm shadow-[3px_3px_0px_0px_#000]"
+            title="Human Coins"
+          >
+            <CoinIcon size="sm" />
+            <span>{coins}</span>
+          </motion.div>
 
-              {/* Profile Avatar Button - Hidden on mobile view, visible on sm/desktop */}
-              <NavLink
-                to="/profile"
-                title="User Profile"
-                className={({ isActive }) =>
-                  `hidden sm:flex w-9 h-9 rounded-full bg-[#f1eee7] border-2 border-[#232323] items-center justify-center shadow-[2px_2px_0px_#232323] hover:-translate-y-0.5 transition-transform ${
-                    isActive ? 'ring-2 ring-[#22c55e] bg-[#232323] text-[#22c55e]' : 'text-[#232323]'
-                  }`
-                }
-              >
-                <User className="w-4 h-4" />
-              </NavLink>
-            </>
+          {/* Streak Pill */}
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className="flex items-center gap-1.5 bg-white border-3 border-black rounded-xl px-2.5 sm:px-3.5 py-1.5 font-mono font-black text-xs sm:text-sm shadow-[3px_3px_0px_0px_#000]"
+            title="Win Streak"
+          >
+            <Flame className="w-4 h-4 text-orange-500 fill-orange-500" />
+            <span>{streak}</span>
+          </motion.div>
+
+          {/* Leaderboard Button */}
+          {onOpenLeaderboard && (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={onOpenLeaderboard}
+              className="p-2 bg-white hover:bg-[#FFD100]/30 transition-colors border-3 border-black rounded-xl shadow-[3px_3px_0px_0px_#000] cursor-pointer"
+              title="Global Leaderboard"
+            >
+              <Trophy className="w-4 h-4 text-[#FFD100] fill-[#FFD100]" />
+            </motion.button>
+          )}
+
+          {/* Sound Toggle */}
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={toggleSound}
+            className="p-2 bg-white hover:bg-neutral-100 border-3 border-black rounded-xl shadow-[3px_3px_0px_0px_#000] cursor-pointer"
+            title={sound ? 'Mute Sound' : 'Enable Sound'}
+          >
+            {sound ? (
+              <Volume2 className="w-4 h-4 text-black" />
+            ) : (
+              <VolumeX className="w-4 h-4 text-neutral-400" />
+            )}
+          </motion.button>
+
+          {/* Settings Button */}
+          {onOpenSettings && (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={onOpenSettings}
+              className="p-2 bg-white hover:bg-[#FFD100]/30 transition-colors border-3 border-black rounded-xl shadow-[3px_3px_0px_0px_#000] cursor-pointer"
+              title="Settings & Rules"
+            >
+              <Settings className="w-4 h-4 text-black" />
+            </motion.button>
           )}
         </div>
       </div>
