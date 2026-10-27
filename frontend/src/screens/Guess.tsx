@@ -15,9 +15,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { playCorrect, playIncorrect } from '../lib/audio'
 
-import { ChevronDown, ChevronUp, MessageSquare, Copy, Check, Gift } from 'lucide-react'
-import type { Message } from '../types'
-
 interface GuessProps {
   onGuess: (guess: OpponentType) => void
   onExtendChat: () => void
@@ -28,8 +25,6 @@ interface GuessProps {
   coinAnimAmount: number
   onPlayAgain: () => void
   onHome: () => void
-  messages?: Message[]
-  onOpenQuests?: () => void
 }
 
 export const Guess: React.FC<GuessProps> = ({
@@ -42,12 +37,8 @@ export const Guess: React.FC<GuessProps> = ({
   coinAnimAmount,
   onPlayAgain,
   onHome,
-  messages = [],
-  onOpenQuests,
 }) => {
   const [watchingVideo, setWatchingVideo] = useState(false)
-  const [showTranscript, setShowTranscript] = useState(false)
-  const [copiedShare, setCopiedShare] = useState(false)
 
   const isCorrect = userGuess === opponent
 
@@ -320,90 +311,6 @@ export const Guess: React.FC<GuessProps> = ({
                       🔥 {streak}
                     </span>
                   </div>
-
-                  {/* Daily Quests Shortcut */}
-                  {onOpenQuests && (
-                    <button
-                      type="button"
-                      onClick={onOpenQuests}
-                      className="w-full flex items-center justify-between p-2.5 bg-[#FFF8D6] hover:bg-[#FFE57F] border-2 border-black rounded-xl text-xs font-mono font-black text-black transition-colors cursor-pointer shadow-[2px_2px_0px_0px_#000]"
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <Gift className="w-4 h-4 text-black" />
-                        <span>Daily Quests Progressed!</span>
-                      </span>
-                      <span className="bg-[#FFD100] px-2 py-0.5 rounded border border-black text-[10px]">
-                        Check Rewards →
-                      </span>
-                    </button>
-                  )}
-
-                  {/* Share Result Snippet */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const shareText = `🤖 Bot or Not Turing Game 🧠\nVerdict: ${
-                        isCorrect ? '✅ Spot on!' : '❌ Fooled!'
-                      } Opponent was ${opponent === 'AI' ? 'an AI Bot' : 'a Real Human'}.\n🔥 Current Streak: ${streak}\nPlay at: http://localhost:5173`
-                      navigator.clipboard?.writeText(shareText)
-                      setCopiedShare(true)
-                      setTimeout(() => setCopiedShare(false), 2000)
-                    }}
-                    className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-neutral-100 hover:bg-neutral-200 border-2 border-black rounded-xl text-xs font-mono font-black text-black transition-colors cursor-pointer shadow-[2px_2px_0px_0px_#000]"
-                  >
-                    {copiedShare ? (
-                      <>
-                        <Check className="w-4 h-4 text-emerald-600" />
-                        <span>Copied Share Card!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-4 h-4 text-black" />
-                        <span>Share Your Verdict</span>
-                      </>
-                    )}
-                  </button>
-
-                  {/* Match Transcript Recap Accordion */}
-                  {messages.length > 0 && (
-                    <div className="bg-white rounded-2xl border-2 border-black overflow-hidden shadow-[2px_2px_0px_0px_#000] text-left">
-                      <button
-                        type="button"
-                        onClick={() => setShowTranscript((prev) => !prev)}
-                        className="w-full p-3 flex items-center justify-between text-xs font-display font-black text-black hover:bg-neutral-50 cursor-pointer"
-                      >
-                        <span className="flex items-center gap-1.5">
-                          <MessageSquare className="w-4 h-4 text-[#FFD100] fill-black" />
-                          Review Conversation ({messages.length} msgs)
-                        </span>
-                        {showTranscript ? (
-                          <ChevronUp className="w-4 h-4 text-black" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-black" />
-                        )}
-                      </button>
-
-                      {showTranscript && (
-                        <div className="max-h-48 overflow-y-auto p-3 space-y-2 border-t-2 border-black/10 bg-[#FFFDF5] text-xs">
-                          {messages.map((m) => (
-                            <div
-                              key={m.id}
-                              className={`p-2 rounded-xl border ${
-                                m.sender === 'user'
-                                  ? 'bg-[#FFD100]/40 border-black/20 ml-4 text-right'
-                                  : 'bg-white border-black/20 mr-4 text-left'
-                              }`}
-                            >
-                              <span className="font-mono text-[10px] font-bold text-neutral-500 block mb-0.5">
-                                {m.sender === 'user' ? 'You' : 'Stranger'}:
-                              </span>
-                              <span className="font-bold text-black">{m.text}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   {/* Action Buttons */}
                   <div className="space-y-2.5 pt-2">

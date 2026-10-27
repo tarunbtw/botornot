@@ -475,8 +475,6 @@ export default function App() {
                 opponent={opponent}
                 streak={streak}
                 coinAnimAmount={coinAnimAmount}
-                messages={chatMessages}
-                onOpenQuests={() => setShowQuestsModal(true)}
                 onPlayAgain={() => {
                   setUserGuess(null)
                   setGameState('MATCHMAKING')
