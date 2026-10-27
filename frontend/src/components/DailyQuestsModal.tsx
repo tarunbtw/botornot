@@ -405,19 +405,11 @@ export const DailyQuestsModal: React.FC<DailyQuestsModalProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="p-3.5 bg-neutral-50 border-t-3 border-black flex justify-between items-center text-xs font-mono font-bold text-neutral-600 shrink-0">
-              <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" />
-                Play daily to build your 7-day bonus!
+            <div className="p-3 bg-neutral-50 border-t-3 border-black flex justify-center items-center text-xs font-mono font-bold text-neutral-600 shrink-0">
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-neutral-500" />
+                Play daily to build your 7-day streak bonus!
               </span>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={onClose}
-                className="py-1 px-3 text-xs font-black border-2"
-              >
-                Close
-              </Button>
             </div>
           </motion.div>
         </motion.div>
