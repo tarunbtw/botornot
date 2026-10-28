@@ -27,6 +27,7 @@ interface HomeProps {
   losses: number
   onStartMatch: () => void
   onOpenLeaderboard: () => void
+  onOpenProfile?: () => void
   showSettings?: boolean
   onCloseSettings?: () => void
   onOpenQuests?: () => void
@@ -67,6 +68,7 @@ export const Home: React.FC<HomeProps> = ({
   losses,
   onStartMatch,
   onOpenLeaderboard,
+  onOpenProfile,
   showSettings: externalShowSettings,
   onCloseSettings,
   onOpenQuests,
@@ -765,6 +767,7 @@ export const Home: React.FC<HomeProps> = ({
         onClose={() => setShowSettings(false)}
         sound={sound}
         onToggleSound={toggleSound}
+        onOpenProfile={onOpenProfile}
       />
     </div>
   )

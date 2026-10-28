@@ -3,11 +3,7 @@ import { userProfile } from '../../db/schema/users.js'
 import { subscription } from '../../db/schema/subscriptions.js'
 import { eq, and, gt } from 'drizzle-orm'
 
-export interface EntitlementService {
-  hasActivePro(userId: string): Promise<boolean>
-}
-
-export class DatabaseEntitlementService implements EntitlementService {
+export const entitlementService = {
   async hasActivePro(userId: string): Promise<boolean> {
     const profile = await db.query.userProfile.findFirst({
       where: eq(userProfile.userId, userId),
@@ -32,7 +28,5 @@ export class DatabaseEntitlementService implements EntitlementService {
     })
 
     return !!activeSub
-  }
+  },
 }
-
-export const entitlementService: EntitlementService = new DatabaseEntitlementService()

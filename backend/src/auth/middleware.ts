@@ -1,9 +1,11 @@
+import crypto from 'crypto'
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import type { IncomingMessage } from 'http'
 import { eq, and, gt } from 'drizzle-orm'
 import { auth } from './auth.js'
 import { db } from '../db/index.js'
 import { session, user } from '../db/schema/auth.js'
+import { env } from '../config/env.js'
 
 export interface AuthenticatedUser {
   id: string
@@ -27,15 +29,32 @@ declare module 'fastify' {
 }
 
 /**
- * Direct lookup in database session table.
- * Fallback when cookies are unsigned or cross-origin headers don't match Better Auth cookie parsing.
+ * Direct lookup in database session table with HMAC verification if signature is present.
  */
 async function verifyDirectSessionToken(
   rawToken: string,
 ): Promise<{ user: AuthenticatedUser; session: AuthenticatedSession } | null> {
   try {
-    const cleanToken = rawToken.split('.')[0]
+    const parts = rawToken.split('.')
+    const cleanToken = parts[0]
     if (!cleanToken) return null
+
+    // If token has a cookie HMAC signature, verify it against BETTER_AUTH_SECRET
+    if (parts.length > 1 && parts[1]) {
+      const sig = parts[1]
+      const expectedB64 = crypto
+        .createHmac('sha256', env.BETTER_AUTH_SECRET)
+        .update(cleanToken)
+        .digest('base64url')
+      const expectedHex = crypto
+        .createHmac('sha256', env.BETTER_AUTH_SECRET)
+        .update(cleanToken)
+        .digest('hex')
+
+      if (sig !== expectedB64 && sig !== expectedHex) {
+        return null
+      }
+    }
 
     const sessionRow = await db.query.session.findFirst({
       where: and(eq(session.token, cleanToken), gt(session.expiresAt, new Date())),
@@ -155,23 +174,21 @@ export async function getWsSession(
       }
     }
 
-    // 2. Fallback: extract token from query param (?token=...), Authorization header, or cookie
+    // 2. Extract token from Authorization header or cookie (query param only in dev/test)
     let token = ''
-    try {
-      const url = new URL(req.url || '', 'http://localhost')
-      token = url.searchParams.get('token') || url.searchParams.get('sessionToken') || ''
-    } catch {
-      // Ignore URL parse error
-    }
-
-    if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
       token = req.headers.authorization.substring(7).trim()
-    }
-
-    if (!token && req.headers.cookie) {
+    } else if (req.headers.cookie) {
       const match = req.headers.cookie.match(/better-auth\.session_token=([^;]+)/)
       if (match && match[1]) {
         token = decodeURIComponent(match[1])
+      }
+    } else if (env.NODE_ENV !== 'production') {
+      try {
+        const url = new URL(req.url || '', 'http://localhost')
+        token = url.searchParams.get('token') || url.searchParams.get('sessionToken') || ''
+      } catch {
+        // Ignore URL parse error in dev
       }
     }
 

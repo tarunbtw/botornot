@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Volume2, VolumeX, Settings, HelpCircle } from 'lucide-react'
+import { X, Volume2, VolumeX, Settings, HelpCircle, User } from 'lucide-react'
 import { Button, Card } from './UI'
 
 interface SettingsModalProps {
@@ -8,6 +8,7 @@ interface SettingsModalProps {
   onClose: () => void
   sound: boolean
   onToggleSound: () => void
+  onOpenProfile?: () => void
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -15,6 +16,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   sound,
   onToggleSound,
+  onOpenProfile,
 }) => {
   return (
     <AnimatePresence>
@@ -99,6 +101,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <li>+10 Coins on correct deduction.</li>
                   </ul>
                 </div>
+
+                {/* Account & Profile Link */}
+                {onOpenProfile && (
+                  <div className="flex items-center justify-between p-3.5 bg-white border-3 border-black rounded-2xl shadow-[2px_2px_0px_0px_#000]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-[#FFD100] border-2 border-black flex items-center justify-center shrink-0">
+                        <User className="w-4 h-4 text-black" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black uppercase text-black">Player Account</div>
+                        <div className="text-[11px] font-bold text-neutral-600">Google sign-in, public ID &amp; stats</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        onClose()
+                        onOpenProfile()
+                      }}
+                      className="px-3 py-1.5 bg-[#FFD100] hover:bg-[#E6BC00] text-black border-2 border-black rounded-xl font-mono text-xs font-black cursor-pointer shadow-[2px_2px_0px_0px_#000] transition-colors"
+                    >
+                      VIEW
+                    </button>
+                  </div>
+                )}
 
                 {/* Match Stats Reset */}
                 <div className="flex items-center justify-between p-3.5 bg-white border-3 border-black rounded-2xl shadow-[2px_2px_0px_0px_#000]">

@@ -1,27 +1,32 @@
 import React from 'react'
 import { CyborgAvatar } from './CyborgAvatar'
 import { CoinIcon } from './CoinIcon'
-import { Flame, Volume2, VolumeX, Trophy, Settings, Gift } from 'lucide-react'
+import { Flame, Volume2, VolumeX, Trophy, Settings, Gift, User } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { isSoundEnabled, setSoundEnabled } from '../lib/audio'
+import type { UserProfileResponse } from '../lib/api'
 
 interface NavbarProps {
   coins: number
   streak: number
+  user?: UserProfileResponse | null
   onOpenLeaderboard?: () => void
   onOpenSettings?: () => void
   onHomeClick?: () => void
   onOpenQuests?: () => void
+  onOpenProfile?: () => void
   unclaimedQuestsCount?: number
 }
 
 export function Navbar({
   coins,
   streak,
+  user,
   onOpenLeaderboard,
   onOpenSettings,
   onHomeClick,
   onOpenQuests,
+  onOpenProfile,
   unclaimedQuestsCount = 0,
 }: NavbarProps) {
   const [sound, setSound] = React.useState(isSoundEnabled())
@@ -93,6 +98,15 @@ export function Navbar({
               {unclaimedQuestsCount > 0 && (
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
               )}
+            </button>
+          )}
+          {onOpenProfile && (
+            <button
+              onClick={onOpenProfile}
+              className="px-3 py-1 rounded-xl text-xs font-display font-black hover:bg-[#FFD100] transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>{user && !user.id.startsWith('guest_') ? (user.name.split(' ')[0] || 'PROFILE') : 'PROFILE'}</span>
             </button>
           )}
         </nav>
@@ -171,6 +185,22 @@ export function Navbar({
               title="Settings & Rules"
             >
               <Settings className="w-4 h-4 text-black" />
+            </motion.button>
+          )}
+
+          {/* Profile & Auth Button */}
+          {onOpenProfile && (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={onOpenProfile}
+              className="p-1.5 sm:p-2 bg-white hover:bg-[#FFD100] transition-colors border-2 sm:border-3 border-black rounded-xl shadow-[2px_2px_0px_0px_#000] cursor-pointer flex items-center justify-center shrink-0"
+              title={user && !user.id.startsWith('guest_') ? `Signed in as ${user.name}` : 'Profile & Account'}
+            >
+              {user?.image ? (
+                <img src={user.image} alt={user.name} className="w-4 h-4 rounded-full border border-black object-cover" />
+              ) : (
+                <User className="w-4 h-4 text-black" />
+              )}
             </motion.button>
           )}
         </div>

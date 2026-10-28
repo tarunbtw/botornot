@@ -39,6 +39,11 @@ export class ChatService {
       throw new Error('RATE_LIMITED')
     }
     this.lastMessageTime.set(params.userId, nowMs)
+    if (this.lastMessageTime.size > 500) {
+      for (const [uid, timestamp] of this.lastMessageTime) {
+        if (nowMs - timestamp > 10000) this.lastMessageTime.delete(uid)
+      }
+    }
 
     // 1. Fetch game and active session
     const gameRecord = await db.query.game.findFirst({

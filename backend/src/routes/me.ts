@@ -10,6 +10,9 @@ import { user, session } from '../db/schema/auth.js'
 import { userProfile } from '../db/schema/users.js'
 import { generateUniquePublicId } from '../lib/public-id.js'
 
+import { env } from '../config/env.js'
+import { redis } from '../redis/index.js'
+
 export const meRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/api/me', { preHandler: [requireAuth] }, async (request, reply) => {
     const u = request.user!
@@ -42,7 +45,25 @@ export const meRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   // Instant Guest / Anonymous Play (matches humanornot.so: no registration required to play)
-  fastify.post('/api/auth/guest-session', async (_request, reply) => {
+  fastify.post('/api/auth/guest-session', async (request, reply) => {
+    // Throttling: Max 30 guest sessions per IP per hour
+    const clientIp = request.ip || '127.0.0.1'
+    if (env.NODE_ENV !== 'test') {
+      try {
+        const throttleKey = `ratelimit:guest:${clientIp}`
+        const count = await redis.incr(throttleKey)
+        if (count === 1) await redis.expire(throttleKey, 3600)
+        if (count > 30) {
+          return reply.status(429).send({
+            error: 'TOO_MANY_REQUESTS',
+            message: 'Too many guest accounts created. Please try again later.',
+          })
+        }
+      } catch {
+        // Fall back gracefully if Redis is momentarily unavailable
+      }
+    }
+
     const guestId = `guest_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`
     const guestName = 'Anonymous Human'
     const guestEmail = `${guestId}@guest.botornot.so`
@@ -63,7 +84,7 @@ export const meRoutes: FastifyPluginAsync = async (fastify) => {
     })
 
     const sessionId = crypto.randomUUID()
-    const sessionToken = crypto.randomBytes(32).toString('hex')
+    const sessionToken = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '')
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
 
     await db.insert(session).values({
@@ -76,6 +97,7 @@ export const meRoutes: FastifyPluginAsync = async (fastify) => {
     reply.setCookie('better-auth.session_token', sessionToken, {
       path: '/',
       httpOnly: true,
+      secure: env.NODE_ENV === 'production',
       sameSite: 'lax',
       expires: expiresAt,
     })
@@ -108,6 +130,7 @@ export const meRoutes: FastifyPluginAsync = async (fastify) => {
     reply.clearCookie('better-auth.session_token', {
       path: '/',
       httpOnly: true,
+      secure: env.NODE_ENV === 'production',
       sameSite: 'lax',
     })
 

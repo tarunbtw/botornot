@@ -77,15 +77,17 @@ export async function fetchGlobalStats(): Promise<GlobalStats | null> {
   }
 }
 
-export async function createGuestSession(): Promise<boolean> {
+export async function createGuestSession(): Promise<UserProfileResponse | null> {
   try {
     const res = await fetch(`${BACKEND_URL}/api/auth/guest-session`, {
       method: 'POST',
       credentials: 'include',
     })
-    return res.ok
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.user || null
   } catch {
-    return false
+    return null
   }
 }
 

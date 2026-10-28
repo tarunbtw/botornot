@@ -33,7 +33,18 @@ const envSchema = z.object({
   EXTENSION_REQUEST_TTL_SECONDS: z.coerce.number().default(60),
 
   MAX_MESSAGE_LENGTH: z.coerce.number().default(2000),
-})
+}).refine(
+  (data) => {
+    if (data.NODE_ENV === 'production' && data.BETTER_AUTH_SECRET === 'change_me_to_a_secure_random_string_with_32_chars') {
+      return false
+    }
+    return true
+  },
+  {
+    message: 'BETTER_AUTH_SECRET must be configured with a secure random key in production',
+    path: ['BETTER_AUTH_SECRET'],
+  },
+)
 
 export type Env = z.infer<typeof envSchema>
 

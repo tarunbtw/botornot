@@ -7,10 +7,11 @@ import { Matchmaking } from './screens/Matchmaking'
 import { Chat } from './screens/Chat'
 import { Guess } from './screens/Guess'
 import { Leaderboard } from './screens/Leaderboard'
+import { Profile } from './screens/Profile'
 import { DailyQuestsModal } from './components/DailyQuestsModal'
 import { AnimatePresence, motion } from 'framer-motion'
 import { gameSocket, type ServerEvent } from './lib/game-socket.js'
-import { fetchMe, fetchStats } from './lib/api.js'
+import { fetchMe, fetchStats, createGuestSession, type UserProfileResponse } from './lib/api.js'
 import { playMatchFound, playReward } from './lib/audio'
 import {
   loadQuestsData,
@@ -22,6 +23,7 @@ import {
 
 export default function App() {
   const [gameState, setGameState] = useState<GameState>('HOME')
+  const [user, setUser] = useState<UserProfileResponse | null>(null)
   const [coins, setCoins] = useState<number>(() => {
     const saved = localStorage.getItem('botornot_coins')
     return saved !== null ? parseInt(saved, 10) : 10
@@ -129,13 +131,26 @@ export default function App() {
   // Track active backend game ID if connected to Fastify backend
   const activeBackendGameIdRef = useRef<string | null>(null)
 
-  // Sync token balance from backend if available
+  // Sync user profile & token balance from backend
   useEffect(() => {
     fetchMe().then((me) => {
-      if (me && typeof me.tokenBalance === 'number') {
-        setCoins(me.tokenBalance)
+      if (me) {
+        setUser(me)
+        if (typeof me.tokenBalance === 'number') {
+          setCoins(me.tokenBalance)
+        }
+      } else {
+        createGuestSession().then((guest) => {
+          if (guest) {
+            setUser(guest)
+            if (typeof guest.tokenBalance === 'number') {
+              setCoins(guest.tokenBalance)
+            }
+          }
+        }).catch(() => {})
       }
     }).catch(() => {})
+
     fetchStats().then((st) => {
       if (st && typeof st.tokenBalance === 'number') {
         setCoins(st.tokenBalance)
@@ -376,7 +391,9 @@ export default function App() {
         <Navbar
           coins={coins}
           streak={streak}
+          user={user}
           onOpenLeaderboard={() => setGameState('LEADERBOARD')}
+          onOpenProfile={() => setGameState('PROFILE')}
           onOpenSettings={() => {
             if (gameState !== 'HOME') setGameState('HOME')
             setShowSettingsModal(true)
@@ -412,6 +429,7 @@ export default function App() {
                   setGameState('MATCHMAKING')
                 }}
                 onOpenLeaderboard={() => setGameState('LEADERBOARD')}
+                onOpenProfile={() => setGameState('PROFILE')}
                 showSettings={showSettingsModal}
                 onCloseSettings={() => setShowSettingsModal(false)}
                 onOpenQuests={() => setShowQuestsModal(true)}
@@ -500,6 +518,28 @@ export default function App() {
                 onBack={() => setGameState('HOME')}
                 userCoins={coins}
                 userStreak={streak}
+              />
+            </motion.div>
+          )}
+
+          {gameState === 'PROFILE' && (
+            <motion.div
+              key="profile"
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 40 }}
+              transition={{ duration: 0.25 }}
+              className="w-full flex-1"
+            >
+              <Profile
+                onBack={() => setGameState('HOME')}
+                user={user}
+                onUserUpdate={setUser}
+                coins={coins}
+                streak={streak}
+                wins={wins}
+                losses={losses}
+                onCoinsChange={handleCoinsChange}
               />
             </motion.div>
           )}

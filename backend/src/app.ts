@@ -17,22 +17,19 @@ export function buildApp() {
     logger: env.NODE_ENV !== 'test',
   })
 
+  function isOriginAllowed(origin?: string): boolean {
+    if (!origin) return true
+    return (
+      origin === env.CLIENT_ORIGIN ||
+      /^http:\/\/(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(
+        origin,
+      )
+    )
+  }
+
   // CORS
   app.register(fastifyCors, {
-    origin: (origin, cb) => {
-      // Allow requests with no origin (curl, mobile webview, same-origin)
-      if (!origin) return cb(null, true)
-      // Allow localhost, 127.0.0.1, or local network IPs (10.x, 192.168.x, 172.16-31.x) on any port
-      if (
-        origin === env.CLIENT_ORIGIN ||
-        /^http:\/\/(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(
-          origin,
-        )
-      ) {
-        return cb(null, true)
-      }
-      return cb(null, false)
-    },
+    origin: (origin, cb) => cb(null, isOriginAllowed(origin)),
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   })
@@ -87,12 +84,23 @@ export function buildApp() {
   // Authenticated WebSocket Route
   app.register(async (fastify) => {
     fastify.get('/ws', { websocket: true }, (socket, req) => {
-      // Buffer messages that arrive before session authentication finishes resolving
+      // CSWSH Protection: Validate Origin header on WebSocket handshake
+      const origin = req.headers.origin
+      if (origin && !isOriginAllowed(origin)) {
+        socket.close(4403, 'Forbidden Origin')
+        return
+      }
+
+      // Buffer early messages that arrive before session authentication finishes resolving
       const messageBuffer: (string | Buffer | ArrayBuffer | Buffer[])[] = []
       let handlerAttached = false
 
       const earlyMessageListener = (data: any) => {
         if (!handlerAttached) {
+          if (messageBuffer.length >= 5) {
+            socket.close(1008, 'Buffer overflow')
+            return
+          }
           messageBuffer.push(data)
         }
       }
