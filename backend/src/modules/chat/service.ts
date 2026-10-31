@@ -1,10 +1,13 @@
 import crypto from 'crypto'
-import { eq, and, sql, asc } from 'drizzle-orm'
+import { eq, and, sql, asc, desc } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { chatMessage } from '../../db/schema/messages.js'
 import { chatSession, game, gamePlayer } from '../../db/schema/games.js'
 import { env } from '../../config/env.js'
 import { aiService } from '../ai/openrouter.js'
+import { getSessionPersona } from '../ai/prompts/archetypes.js'
+import { humanizeResponse } from '../ai/humanizer.js'
+import { calculateReadingDelayMs, calculateTypingDelayMs, sleep } from '../ai/timing.js'
 
 export interface SendMessageParams {
   gameId: string
@@ -81,6 +84,15 @@ export class ChatService {
       if (gameRecord.firstSenderPlayerId !== params.userId) {
         throw new Error('NOT_YOUR_TURN_FIRST')
       }
+    } else if (existingCount > 0) {
+      // Turn-taking enforcement: player cannot send consecutive messages
+      const lastMsg = await db.query.chatMessage.findFirst({
+        where: eq(chatMessage.sessionId, session.id),
+        orderBy: [desc(chatMessage.sequenceNumber)],
+      })
+      if (lastMsg && lastMsg.senderUserId === params.userId) {
+        throw new Error('NOT_YOUR_TURN_CONSECUTIVE_MESSAGE')
+      }
     }
 
     // 2. Persist the user message atomically
@@ -126,6 +138,8 @@ export class ChatService {
 
   /**
    * Generates AI message when it is AI's first turn or replying.
+   * Utilizes dynamic archetypes, realistic reading and typing delays,
+   * QWERTY typo injection, and multi-bubble delivery.
    */
   async triggerAIResponse(
     gameId: string,
@@ -149,20 +163,66 @@ export class ChatService {
     const timer = setTimeout(() => abortController.abort(), timeoutMs)
 
     try {
-      const aiResponse = await aiService.generateStreamingResponse({
+      // 1. Retrieve session persona archetype and mundane reality anchor
+      const { archetype, anchor } = getSessionPersona(sessionId)
+      const lastUserMsg = history.filter((m) => m.senderType === 'HUMAN').pop()?.content || ''
+
+      // 2. Generate raw AI completion in background (without streaming raw tokens to client)
+      const rawAiResponse = await aiService.generateStreamingResponse({
         messages: history.map((m) => ({
           senderType: m.senderType as 'HUMAN' | 'AI',
           content: m.content,
         })),
+        systemPrompt: archetype.systemPrompt(anchor),
         signal: abortController.signal,
-        onDelta: onAiDelta,
       })
 
       clearTimeout(timer)
-      if (!aiResponse) return
+      if (!rawAiResponse || abortController.signal.aborted) return
 
-      // Persist completed AI message
-      const nextSeq = history.length + 1
+      // 3. Humanize: strip ending periods, apply lowercase/slang contractions, QWERTY typos, anti-bot defense
+      const { bubbles } = humanizeResponse(rawAiResponse, archetype.casing, lastUserMsg)
+      const replyContent = bubbles[0]
+      if (!replyContent) return
+
+      // 4. Simulate human reading delay (time to read previous message before responding)
+      // If AI is first sender, reading delay is a quick opening pause
+      const readingDelay = lastUserMsg ? calculateReadingDelayMs(lastUserMsg) : 1200 + Math.random() * 800
+      await sleep(Math.min(readingDelay, Math.max(0, new Date(sessionEndsAt).getTime() - Date.now())))
+
+      if (new Date() >= new Date(sessionEndsAt) || abortController.signal.aborted) return
+
+      // Turn-taking invariant: check if another AI message was already recorded
+      const latestMsgCheck = await db.query.chatMessage.findFirst({
+        where: eq(chatMessage.sessionId, sessionId),
+        orderBy: [desc(chatMessage.sequenceNumber)],
+      })
+      if (latestMsgCheck && latestMsgCheck.senderType === 'AI') {
+        return
+      }
+
+      // 5. Deliver single bubble with realistic typing delay & typing indicator
+      const typingDelay = calculateTypingDelayMs(replyContent)
+
+      // Show typing indicator on client
+      if (onAiDelta) {
+        onAiDelta('')
+      }
+
+      // Wait typing duration (simulating ~45-65 WPM)
+      await sleep(Math.min(typingDelay, Math.max(0, new Date(sessionEndsAt).getTime() - Date.now())))
+      if (new Date() >= new Date(sessionEndsAt) || abortController.signal.aborted) return
+
+      // Double-check invariant after typing sleep
+      const finalMsgCheck = await db.query.chatMessage.findFirst({
+        where: eq(chatMessage.sessionId, sessionId),
+        orderBy: [desc(chatMessage.sequenceNumber)],
+      })
+      if (finalMsgCheck && finalMsgCheck.senderType === 'AI') {
+        return
+      }
+
+      const currentSeq = (finalMsgCheck?.sequenceNumber || history.length) + 1
       const aiMsgId = crypto.randomUUID()
 
       await db.insert(chatMessage).values({
@@ -171,15 +231,15 @@ export class ChatService {
         sessionId,
         senderType: 'AI',
         senderUserId: null,
-        sequenceNumber: nextSeq,
-        content: aiResponse,
+        sequenceNumber: currentSeq,
+        content: replyContent,
       })
 
       if (onAiDone) {
         onAiDone({
           id: aiMsgId,
-          content: aiResponse,
-          sequenceNumber: nextSeq,
+          content: replyContent,
+          sequenceNumber: currentSeq,
         })
       }
     } catch (err) {

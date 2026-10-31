@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { GameState, OpponentType, Message } from './types'
-import { AI_RESPONSES, AI_EXTENDED_RESPONSES, calculateTypingDelay, containsPromptInjection } from './utils'
 import { Navbar } from './components/Navbar'
+import { fetchAIResponse, resetMatchPersona } from './lib/ai-client'
 import { Home } from './screens/Home'
 import { Matchmaking } from './screens/Matchmaking'
 import { Chat } from './screens/Chat'
@@ -48,6 +48,18 @@ export default function App() {
   const [isExtendedChat, setIsExtendedChat] = useState<boolean>(false)
   const [freeExtendedMessagesLeft, setFreeExtendedMessagesLeft] = useState<number>(0)
   const [opponentTyping, setOpponentTyping] = useState<boolean>(false)
+  const [isOpponentFirstTurn, setIsOpponentFirstTurn] = useState<boolean>(false)
+  const isAiRespondingRef = useRef<boolean>(false)
+  const aiTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  const aiGenerationIdRef = useRef<number>(0)
+
+  const clearAiTimers = () => {
+    aiTimersRef.current.forEach(clearTimeout)
+    aiTimersRef.current = []
+    setOpponentTyping(false)
+    aiGenerationIdRef.current++
+  }
+
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false)
   const [showQuestsModal, setShowQuestsModal] = useState<boolean>(false)
   const [questsData, setQuestsData] = useState<DailyQuestsData>(() => loadQuestsData())
@@ -121,6 +133,9 @@ export default function App() {
   }
 
   const handleForfeitMatch = () => {
+    clearAiTimers()
+    isAiRespondingRef.current = false
+    setIsOpponentFirstTurn(false)
     setStreak((prev) => Math.max(0, prev - 1))
     setUserGuess(null)
     setGameState('HOME')
@@ -170,13 +185,27 @@ export default function App() {
     const handleMatchFound = () => {
       if (!isSubscribed) return
       playMatchFound()
+      clearAiTimers()
       const isAI = Math.random() > 0.45
+      const opponentStarts = Math.random() > 0.5
+      setIsOpponentFirstTurn(opponentStarts)
       setOpponent(isAI ? 'AI' : 'HUMAN')
       setChatMessages([])
       setChatTimeLeft(120) // Full 2 minutes (120s)!
       setIsExtendedChat(false)
       setFreeExtendedMessagesLeft(0)
       setGameState('CHAT')
+      resetMatchPersona()
+
+      // If opponent starts the game, initiate their opening greeting with tracked timer
+      if (opponentStarts) {
+        const thisGen = ++aiGenerationIdRef.current
+        const openingTimer = setTimeout(() => {
+          if (thisGen !== aiGenerationIdRef.current) return
+          triggerAiOpponentReply([])
+        }, 1200 + Math.floor(Math.random() * 400))
+        aiTimersRef.current.push(openingTimer)
+      }
     }
 
     try {
@@ -234,68 +263,98 @@ export default function App() {
     }
   }, [gameState, chatTimeLeft, isExtendedChat])
 
-  // --- Opponent Conversational Logic in Chat (Dynamic Jitter & Human Cadence) ---
+  // --- Opponent Conversational AI (Groq Cloud + Persistent Persona) ---
+  // Clean up timers on unmount or screen transition
   useEffect(() => {
-    if (gameState !== 'CHAT') return
-
-    // If opponent has already sent the latest message, wait for user reply
-    if (chatMessages.length > 0 && chatMessages[chatMessages.length - 1].sender === 'opponent') {
-      return
+    if (gameState !== 'CHAT') {
+      clearAiTimers()
+      isAiRespondingRef.current = false
     }
+  }, [gameState])
 
-    const lastUserMsg = chatMessages[chatMessages.length - 1]?.text || ''
-    const isProbing = containsPromptInjection(lastUserMsg)
+  const triggerAiOpponentReply = async (history: Message[]) => {
+    // STRICT TURN-TAKING: Don't reply if last message was already from opponent
+    const lastMsg = history[history.length - 1]
+    if (lastMsg && lastMsg.sender === 'opponent') return
 
-    // Select response pool or defensive human quip if player tries a prompt leak
-    let chosenText = ''
-    if (isProbing) {
-      const defensiveAnswers = [
-        "lol why are you talking like a robot hacker?",
-        "bro I'm literally just a person on my phone, stop with the prompts 😂",
-        "system prompt? what are you even talking about haha",
-        "nice try nerd, you're definitely overanalyzing this",
-      ]
-      chosenText = defensiveAnswers[Math.floor(Math.random() * defensiveAnswers.length)]
-    } else {
-      const pool = isExtendedChat ? AI_EXTENDED_RESPONSES : AI_RESPONSES
-      chosenText = pool[Math.floor(Math.random() * pool.length)]
-    }
+    const thisGenId = ++aiGenerationIdRef.current
+    isAiRespondingRef.current = true
 
-    const { readingTime, typingDuration } = calculateTypingDelay(chosenText)
+    try {
+      const result = await fetchAIResponse(
+        history.map((m) => ({
+          sender: m.sender,
+          text: m.text,
+        }))
+      )
 
-    // First: "reading" pause before typing dots appear
-    const showTypingTimer = setTimeout(() => {
-      if (gameState === 'CHAT') {
-        setOpponentTyping(true)
+      if (thisGenId !== aiGenerationIdRef.current) return
+
+      // 1. Reading pause — human reads the incoming message first
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, result.readingDelayMs)
+        aiTimersRef.current.push(timer)
+      })
+
+      if (thisGenId !== aiGenerationIdRef.current) return
+
+      // 2. Typing indicator ON — human starts typing their reply
+      setOpponentTyping(true)
+
+      // 3. Typing duration — proportional to response length
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, result.typingDelayMs)
+        aiTimersRef.current.push(timer)
+      })
+
+      setOpponentTyping(false)
+
+      if (thisGenId !== aiGenerationIdRef.current) return
+
+      // 4. Deliver SINGLE message with strict invariant: NEVER two opponent messages in a row
+      if (result.text) {
+        setChatMessages((prev) => {
+          if (prev.length > 0 && prev[prev.length - 1].sender === 'opponent') {
+            return prev
+          }
+          return [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              sender: 'opponent',
+              text: result.text,
+              timestamp: Date.now(),
+            },
+          ]
+        })
       }
-    }, readingTime)
-
-    // Second: realistic typing duration based on character length
-    const messageTimer = setTimeout(() => {
-      if (gameState !== 'CHAT') return
+      setIsOpponentFirstTurn(false)
+    } catch (err) {
+      console.warn('[AI] Error in reply generation:', err)
       setOpponentTyping(false)
-
-      setChatMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          sender: 'opponent',
-          text: chosenText,
-          timestamp: Date.now(),
-        },
-      ])
-    }, readingTime + typingDuration)
-
-    return () => {
-      clearTimeout(showTypingTimer)
-      clearTimeout(messageTimer)
-      setOpponentTyping(false)
+    } finally {
+      if (thisGenId === aiGenerationIdRef.current) {
+        isAiRespondingRef.current = false
+      }
     }
-  }, [gameState, chatMessages, isExtendedChat])
+  }
 
   // --- Handle User Sending a Message ---
   const handleSendMessage = (text: string) => {
-    if (!text.trim()) return
+    const trimmed = text.trim()
+    if (!trimmed) return
+
+    // Can't send if it's the opponent's first turn to start
+    if (chatMessages.length === 0 && isOpponentFirstTurn) return
+
+    // STRICT TURN-TAKING: User can't send if last message was already from user
+    const lastMsg = chatMessages[chatMessages.length - 1]
+    if (lastMsg && lastMsg.sender === 'user') return
+
+    // Cancel any pending AI timers/generations
+    clearAiTimers()
+    isAiRespondingRef.current = false
+    setIsOpponentFirstTurn(false)
 
     if (isExtendedChat) {
       if (freeExtendedMessagesLeft > 0) {
@@ -309,21 +368,24 @@ export default function App() {
     // Forward to backend game socket if active game exists
     if (activeBackendGameIdRef.current) {
       try {
-        gameSocket.sendMessage(activeBackendGameIdRef.current, text.trim())
+        gameSocket.sendMessage(activeBackendGameIdRef.current, trimmed)
       } catch {
         // local fallback
       }
     }
 
-    setChatMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        sender: 'user',
-        text: text.trim(),
-        timestamp: Date.now(),
-      },
-    ])
+    const newMsg: Message = {
+      id: Date.now().toString(),
+      sender: 'user',
+      text: trimmed,
+      timestamp: Date.now(),
+    }
+
+    const updated = [...chatMessages, newMsg]
+    setChatMessages(updated)
+
+    // Opponent replies on their turn (strictly 1 message)
+    triggerAiOpponentReply(updated)
   }
 
   // --- Handle Verdict Guess ---
@@ -452,6 +514,7 @@ export default function App() {
                 coins={coins}
                 onEndExtendedChat={() => setGameState('GUESS')}
                 opponentTyping={opponentTyping}
+                isOpponentFirstTurn={isOpponentFirstTurn}
                 onForfeitMatch={handleForfeitMatch}
                 onWatchAdForCoins={handleRecordAdWatched}
               />

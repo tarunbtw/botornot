@@ -10,10 +10,11 @@ export const redis = new Redis(env.REDIS_URL, {
   lazyConnect: true,
 })
 
+let hasLoggedRedisError = false
 redis.on('error', (err) => {
-  // In development/test or before container start, log cleanly
-  if (process.env.NODE_ENV !== 'test') {
-    console.error('[Redis Error]:', err.message)
+  if (process.env.NODE_ENV !== 'test' && !hasLoggedRedisError) {
+    console.warn('[Redis] Connection offline (retrying in background):', err.message)
+    hasLoggedRedisError = true
   }
 })
 

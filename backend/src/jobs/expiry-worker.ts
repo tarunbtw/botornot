@@ -18,11 +18,16 @@ export class ExpiryWorker {
     this.notifyCallback = callback
   }
 
+  private hasLoggedDbError = false
+
   start(intervalMs = 2000) {
     if (this.timer) return
     this.timer = setInterval(() => {
       this.reconcile().catch((err) => {
-        console.error('[ExpiryWorker] Error during reconciliation:', err)
+        if (!this.hasLoggedDbError) {
+          console.warn('[ExpiryWorker] Database currently offline (skipping reconciliation):', err?.message || err)
+          this.hasLoggedDbError = true
+        }
       })
     }, intervalMs)
   }

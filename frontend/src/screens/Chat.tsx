@@ -25,6 +25,7 @@ interface ChatProps {
   freeExtendedMessagesLeft?: number
   coins: number
   opponentTyping?: boolean
+  isOpponentFirstTurn?: boolean
   onForfeitMatch?: () => void
   onEndExtendedChat?: () => void
   onWatchAdForCoins?: () => void
@@ -38,6 +39,7 @@ export const Chat: React.FC<ChatProps> = ({
   freeExtendedMessagesLeft = 0,
   coins,
   opponentTyping = false,
+  isOpponentFirstTurn = false,
   onForfeitMatch,
   onEndExtendedChat,
   onWatchAdForCoins,
@@ -98,9 +100,17 @@ export const Chat: React.FC<ChatProps> = ({
   const hasFreeMessage = isExtended && freeExtendedMessagesLeft > 0
   const isOutOfCoinsForNextMessage = isExtended && !hasFreeMessage && coins < 1
 
+  // Turn-taking: user can't send if waiting for opponent to reply OR if opponent has first turn to speak
+  const lastMessage = messages[messages.length - 1]
+  const isWaitingForOpponent =
+    (messages.length === 0 && isOpponentFirstTurn) ||
+    lastMessage?.sender === 'user' ||
+    opponentTyping
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!inputText.trim()) return
+    if (isWaitingForOpponent) return // strict turn-taking
     if (isOutOfCoinsForNextMessage) {
       setShowOutOfCoinsModal(true)
       return
@@ -321,20 +331,25 @@ export const Chat: React.FC<ChatProps> = ({
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder={
-                  hasFreeMessage
+                  isWaitingForOpponent
+                    ? messages.length === 0
+                      ? 'Opponent starts the chat... please wait'
+                      : 'Opponent is typing... waiting for reply'
+                    : hasFreeMessage
                     ? 'Send message (1st message is FREE)...'
                     : isExtended
                     ? `Send message (1 Coin • ${coins} coins left)...`
                     : 'Type message to test your opponent...'
                 }
-                className="flex-1 bg-neutral-50 border-3 border-black rounded-2xl px-4 sm:px-5 py-3 font-bold text-black placeholder:text-neutral-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#FFD100] transition-all text-sm sm:text-base"
+                className={`flex-1 border-3 border-black rounded-2xl px-4 sm:px-5 py-3 font-bold text-black placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-[#FFD100] transition-all text-sm sm:text-base ${isWaitingForOpponent ? 'bg-neutral-200 opacity-60 cursor-not-allowed' : 'bg-neutral-50 focus:bg-white'}`}
                 autoFocus
+                disabled={isWaitingForOpponent}
               />
               <Button
                 type="submit"
                 variant={hasFreeMessage ? 'success' : 'primary'}
                 size="md"
-                disabled={!inputText.trim()}
+                disabled={!inputText.trim() || isWaitingForOpponent}
                 className="px-5 sm:px-6 py-3 rounded-2xl shrink-0 border-3"
               >
                 <Send className="w-5 h-5" />

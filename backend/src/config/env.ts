@@ -19,6 +19,10 @@ const envSchema = z.object({
 
   CLIENT_ORIGIN: z.string().default('http://localhost:5173'),
 
+  AI_PROVIDER: z.enum(['groq', 'openrouter']).default('groq'),
+  GROQ_API_KEY: z.string().default('mock-key'),
+  GROQ_MODEL: z.string().default('qwen/qwen3.8-27b'),
+
   OPENROUTER_API_KEY: z.string().default('mock-key'),
   OPENROUTER_MODEL: z.string().default('anthropic/claude-3.5-haiku'),
 
