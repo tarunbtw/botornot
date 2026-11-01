@@ -1,4 +1,4 @@
-export type GameState = 'HOME' | 'MATCHMAKING' | 'CHAT' | 'GUESS' | 'LEADERBOARD' | 'PROFILE'
+export type GameState = 'HOME' | 'MATCHMAKING' | 'CHAT' | 'GUESS' | 'LEADERBOARD' | 'PROFILE' | 'QUESTS'
 
 export type OpponentType = 'AI' | 'HUMAN'
 

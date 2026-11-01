@@ -8,7 +8,7 @@ import { Chat } from './screens/Chat'
 import { Guess } from './screens/Guess'
 import { Leaderboard } from './screens/Leaderboard'
 import { Profile } from './screens/Profile'
-import { DailyQuestsModal } from './components/DailyQuestsModal'
+import { Quests } from './screens/Quests'
 import { AnimatePresence, motion } from 'framer-motion'
 import { gameSocket, type ServerEvent } from './lib/game-socket.js'
 import { fetchMe, fetchStats, createGuestSession, type UserProfileResponse } from './lib/api.js'
@@ -63,8 +63,25 @@ export default function App() {
   }
 
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false)
-  const [showQuestsModal, setShowQuestsModal] = useState<boolean>(false)
   const [questsData, setQuestsData] = useState<DailyQuestsData>(() => loadQuestsData())
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('botornot_theme')
+    if (saved === 'dark' || saved === 'light') return saved
+    return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light'
+  })
+
+  useEffect(() => {
+    localStorage.setItem('botornot_theme', theme)
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [theme])
+
+  const toggleTheme = () => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
 
   // Sync daily quests whenever day changes or mounts
   useEffect(() => {
@@ -447,30 +464,38 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFFDF5] text-black flex flex-col font-body selection:bg-black selection:text-[#FFD100]">
+    <div
+      className={`bg-[#FAFAF8] dark:bg-[#0E0E12] text-black dark:text-white flex flex-col font-body selection:bg-black selection:text-[#FFD100] transition-colors duration-200 ${
+        gameState === 'CHAT' ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-screen'
+      }`}
+    >
       {/* Top Navbar in Yellow & White Neo-Brutalist Theme - Hidden during Chat for distractionless experience */}
       {gameState !== 'CHAT' && (
         <Navbar
           coins={coins}
           streak={streak}
           user={user}
+          currentPage={gameState}
           onOpenLeaderboard={() => setGameState('LEADERBOARD')}
           onOpenProfile={() => setGameState('PROFILE')}
-          onOpenSettings={() => {
-            if (gameState !== 'HOME') setGameState('HOME')
-            setShowSettingsModal(true)
-          }}
           onHomeClick={() => {
             setUserGuess(null)
             setGameState('HOME')
+            window.scrollTo({ top: 0, behavior: 'smooth' })
           }}
-          onOpenQuests={() => setShowQuestsModal(true)}
+          onOpenQuests={() => setGameState('QUESTS')}
           unclaimedQuestsCount={getUnclaimedCount(questsData)}
+          isDark={theme === 'dark'}
+          onToggleTheme={toggleTheme}
         />
       )}
 
       {/* Main Game Screen Viewport */}
-      <main className="flex-1 flex flex-col relative overflow-x-hidden">
+      <main
+        className={`flex-1 flex flex-col relative ${
+          gameState === 'CHAT' ? 'h-full max-h-full overflow-hidden' : 'overflow-x-hidden'
+        }`}
+      >
         <AnimatePresence mode="wait">
           {gameState === 'HOME' && (
             <motion.div
@@ -494,7 +519,7 @@ export default function App() {
                 onOpenProfile={() => setGameState('PROFILE')}
                 showSettings={showSettingsModal}
                 onCloseSettings={() => setShowSettingsModal(false)}
-                onOpenQuests={() => setShowQuestsModal(true)}
+                onOpenQuests={() => setGameState('QUESTS')}
                 unclaimedQuestsCount={getUnclaimedCount(questsData)}
                 loginStreak={questsData.loginStreak}
               />
@@ -521,7 +546,7 @@ export default function App() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -40 }}
               transition={{ duration: 0.25 }}
-              className="w-full flex-1 flex flex-col min-h-screen"
+              className="w-full flex-1 flex flex-col h-full max-h-full overflow-hidden"
             >
               <Chat
                 messages={chatMessages}
@@ -606,24 +631,32 @@ export default function App() {
               />
             </motion.div>
           )}
+
+          {gameState === 'QUESTS' && (
+            <motion.div
+              key="quests"
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 40 }}
+              transition={{ duration: 0.25 }}
+              className="w-full flex-1"
+            >
+              <Quests
+                onBack={() => setGameState('HOME')}
+                questsData={questsData}
+                onClaimQuest={handleClaimQuest}
+                onClaimLogin={handleClaimLogin}
+                onClaimAllBonus={handleClaimAllBonus}
+                onWatchAd={handleRecordAdWatched}
+                onStartMatch={() => {
+                  setUserGuess(null)
+                  setGameState('MATCHMAKING')
+                }}
+              />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
-
-      {/* Daily Quests, 7-Day Login Streak & 12h Sponsor Ad Modal */}
-      <DailyQuestsModal
-        isOpen={showQuestsModal}
-        onClose={() => setShowQuestsModal(false)}
-        questsData={questsData}
-        onClaimQuest={handleClaimQuest}
-        onClaimLogin={handleClaimLogin}
-        onClaimAllBonus={handleClaimAllBonus}
-        onWatchAd={handleRecordAdWatched}
-        onStartMatch={() => {
-          setShowQuestsModal(false)
-          setUserGuess(null)
-          setGameState('MATCHMAKING')
-        }}
-      />
     </div>
   )
 }

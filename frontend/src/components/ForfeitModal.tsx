@@ -1,6 +1,6 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AlertTriangle } from 'lucide-react'
+import { WarningTriangle } from 'iconoir-react'
 import { Button } from './UI'
 
 interface ForfeitModalProps {
@@ -21,25 +21,25 @@ export const ForfeitModal: React.FC<ForfeitModalProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
         >
           <motion.div
-            initial={{ scale: 0.9, y: 20 }}
+            initial={{ scale: 0.95, y: 15 }}
             animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0.9, y: 20 }}
-            className="w-full max-w-sm bg-white border-4 border-black rounded-3xl p-6 shadow-[8px_8px_0px_0px_#000] text-center"
+            exit={{ scale: 0.95, y: 15 }}
+            className="w-full max-w-sm bg-white dark:bg-[#181820] border-2 border-black dark:border-neutral-700 rounded-2xl p-5 shadow-[4px_4px_0px_0px_#000] dark:shadow-none text-center"
           >
-            <div className="w-12 h-12 bg-red-100 rounded-2xl border-3 border-black flex items-center justify-center mx-auto mb-3 text-red-600">
-              <AlertTriangle className="w-6 h-6" />
+            <div className="w-10 h-10 bg-red-100 dark:bg-red-950/60 rounded-xl border border-black dark:border-neutral-700 flex items-center justify-center mx-auto mb-3 text-red-600 dark:text-red-400">
+              <WarningTriangle className="w-5 h-5" />
             </div>
-            <h3 className="font-display font-black text-xl text-black mb-1 uppercase">
+            <h3 className="font-display font-black text-lg text-black dark:text-white mb-1 uppercase">
               Abandon Match?
             </h3>
-            <p className="text-xs font-bold text-neutral-700 leading-relaxed mb-5">
-              Leaving early will penalize your streak by <strong>-1</strong>. Are you sure you want to quit?
+            <p className="text-xs font-bold text-neutral-600 dark:text-neutral-400 leading-relaxed mb-4">
+              Leaving early will reset your streak. Are you sure you want to quit?
             </p>
 
-            <div className="flex gap-3">
+            <div className="flex gap-2.5">
               <Button
                 variant="danger"
                 fullWidth
@@ -47,17 +47,17 @@ export const ForfeitModal: React.FC<ForfeitModalProps> = ({
                   onClose()
                   onConfirm()
                 }}
-                className="py-2.5 text-xs font-black uppercase tracking-wider"
+                className="py-2 text-xs font-black uppercase tracking-wider"
               >
-                Leave (-1 🔥)
+                Quit Match
               </Button>
               <Button
                 variant="secondary"
                 fullWidth
                 onClick={onClose}
-                className="py-2.5 text-xs font-black uppercase tracking-wider"
+                className="py-2 text-xs font-black uppercase tracking-wider"
               >
-                Stay &amp; Chat
+                Stay
               </Button>
             </div>
           </motion.div>

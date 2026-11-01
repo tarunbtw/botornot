@@ -1,7 +1,7 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Volume2, VolumeX, Settings, HelpCircle, User } from 'lucide-react'
-import { Button, Card } from './UI'
+import { Xmark, SoundHigh, SoundOff, Settings, HelpCircle } from 'iconoir-react'
+import { Card } from './UI'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -16,7 +16,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   sound,
   onToggleSound,
-  onOpenProfile,
+  onOpenProfile: _onOpenProfile,
 }) => {
   return (
     <AnimatePresence>
@@ -25,54 +25,51 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-xs"
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
         >
           <motion.div
-            initial={{ scale: 0.9, y: 20 }}
+            initial={{ scale: 0.95, y: 15 }}
             animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0.9, y: 20 }}
-            className="w-full max-w-md"
+            exit={{ scale: 0.95, y: 15 }}
+            className="w-full max-w-sm"
           >
-            <Card className="relative bg-[#FFFDF5] p-6 border-4 shadow-[8px_8px_0px_0px_#000]">
+            <Card className="relative bg-[#FAFAF8] dark:bg-[#181820] p-5 border-2 border-black dark:border-neutral-700 shadow-[4px_4px_0px_0px_#000] dark:shadow-none">
               <button
                 onClick={onClose}
-                className="absolute top-4 right-4 p-2 rounded-xl hover:bg-neutral-200 transition-colors cursor-pointer"
+                className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors cursor-pointer text-black dark:text-white"
               >
-                <X className="w-5 h-5" />
+                <Xmark className="w-4 h-4" />
               </button>
 
-              <div className="flex items-center gap-3 mb-5">
-                <div className="w-10 h-10 rounded-2xl bg-[#FFD100] border-3 border-black flex items-center justify-center shadow-[2px_2px_0px_0px_#000]">
-                  <Settings className="w-5 h-5 text-black" />
+              <div className="flex items-center gap-2.5 mb-5">
+                <div className="w-8 h-8 rounded-xl bg-[#FFD100] border-2 border-black flex items-center justify-center shadow-[1px_1px_0px_0px_#000]">
+                  <Settings className="w-4 h-4 text-black" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-display font-black text-black leading-none">
-                    Settings &amp; Preferences
+                  <h3 className="text-lg font-display font-black text-black dark:text-white leading-none">
+                    Settings
                   </h3>
-                  <span className="font-mono text-[10px] font-bold text-neutral-600">
-                    BOT OR NOT • CONFIGURATION
-                  </span>
                 </div>
               </div>
 
-              <div className="space-y-4 mb-6">
+              <div className="space-y-3 mb-4">
                 {/* Sound FX Toggle */}
-                <div className="flex items-center justify-between p-3.5 bg-white border-3 border-black rounded-2xl shadow-[2px_2px_0px_0px_#000]">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between p-3 bg-white dark:bg-[#1E1E28] border-2 border-black dark:border-neutral-700 rounded-xl shadow-[2px_2px_0px_0px_#000] dark:shadow-none">
+                  <div className="flex items-center gap-2.5">
                     {sound ? (
-                      <Volume2 className="w-5 h-5 text-black" />
+                      <SoundHigh className="w-4 h-4 text-black dark:text-white" />
                     ) : (
-                      <VolumeX className="w-5 h-5 text-neutral-400" />
+                      <SoundOff className="w-4 h-4 text-neutral-400" />
                     )}
                     <div>
-                      <div className="text-xs font-black uppercase text-black">Sound Effects</div>
-                      <div className="text-[11px] font-bold text-neutral-600">Audio feedback during countdown &amp; verdict</div>
+                      <div className="text-xs font-black uppercase text-black dark:text-white">Sound Effects</div>
+                      <div className="text-[10px] font-bold text-neutral-500 dark:text-neutral-400">Audio feedback during timer &amp; verdict</div>
                     </div>
                   </div>
                   <button
                     onClick={onToggleSound}
-                    className={`px-3 py-1.5 rounded-xl border-2 border-black font-mono text-xs font-black cursor-pointer transition-colors ${
-                      sound ? 'bg-[#FFD100] text-black shadow-[2px_2px_0px_0px_#000]' : 'bg-neutral-200 text-neutral-600'
+                    className={`px-3 py-1 rounded-lg border border-black dark:border-neutral-700 font-mono text-xs font-black cursor-pointer transition-colors ${
+                      sound ? 'bg-[#FFD100] text-black shadow-[1px_1px_0px_0px_#000]' : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300'
                     }`}
                   >
                     {sound ? 'ON' : 'OFF'}
@@ -80,80 +77,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
 
                 {/* Match Duration Indicator */}
-                <div className="flex items-center justify-between p-3.5 bg-white border-3 border-black rounded-2xl shadow-[2px_2px_0px_0px_#000]">
+                <div className="flex items-center justify-between p-3 bg-white dark:bg-[#1E1E28] border-2 border-black dark:border-neutral-700 rounded-xl shadow-[2px_2px_0px_0px_#000] dark:shadow-none">
                   <div>
-                    <div className="text-xs font-black uppercase text-black">Chat Duration</div>
-                    <div className="text-[11px] font-bold text-neutral-600">Standard Turing experiment speed</div>
+                    <div className="text-xs font-black uppercase text-black dark:text-white">Chat Duration</div>
+                    <div className="text-[10px] font-bold text-neutral-500 dark:text-neutral-400">Turing experiment standard</div>
                   </div>
-                  <span className="font-mono text-xs font-black bg-[#FFD100] px-3 py-1.5 rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_#000]">
+                  <span className="font-mono text-xs font-black bg-[#FFD100] text-black px-2.5 py-1 rounded-lg border border-black shadow-[1px_1px_0px_0px_#000]">
                     2 MIN (120s)
                   </span>
                 </div>
 
                 {/* Game Info Summary */}
-                <div className="p-4 bg-white border-3 border-black rounded-2xl shadow-[2px_2px_0px_0px_#000]">
-                  <h4 className="font-black text-xs uppercase flex items-center gap-1.5 mb-2">
-                    <HelpCircle className="w-4 h-4 text-black" /> 2-Minute Game Format
+                <div className="p-3.5 bg-white dark:bg-[#1E1E28] border-2 border-black dark:border-neutral-700 rounded-xl shadow-[2px_2px_0px_0px_#000] dark:shadow-none">
+                  <h4 className="font-black text-xs uppercase flex items-center gap-1.5 mb-1.5 text-black dark:text-white">
+                    <HelpCircle className="w-3.5 h-3.5 text-black dark:text-white" /> Game Rules
                   </h4>
-                  <ul className="text-xs text-neutral-700 space-y-1 list-disc pl-4 font-bold">
+                  <ul className="text-xs text-neutral-600 dark:text-neutral-300 space-y-1 list-disc pl-4 font-bold">
                     <li>120s live anonymous chat.</li>
                     <li>Guess Human or Bot at timer expiration.</li>
-                    <li>+10 Coins on correct deduction.</li>
+                    <li>Correct guesses earn +10 coins and streak.</li>
                   </ul>
                 </div>
-
-                {/* Account & Profile Link */}
-                {onOpenProfile && (
-                  <div className="flex items-center justify-between p-3.5 bg-white border-3 border-black rounded-2xl shadow-[2px_2px_0px_0px_#000]">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-[#FFD100] border-2 border-black flex items-center justify-center shrink-0">
-                        <User className="w-4 h-4 text-black" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-black uppercase text-black">Player Account</div>
-                        <div className="text-[11px] font-bold text-neutral-600">Google sign-in, public ID &amp; stats</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        onClose()
-                        onOpenProfile()
-                      }}
-                      className="px-3 py-1.5 bg-[#FFD100] hover:bg-[#E6BC00] text-black border-2 border-black rounded-xl font-mono text-xs font-black cursor-pointer shadow-[2px_2px_0px_0px_#000] transition-colors"
-                    >
-                      VIEW
-                    </button>
-                  </div>
-                )}
-
-                {/* Match Stats Reset */}
-                <div className="flex items-center justify-between p-3.5 bg-white border-3 border-black rounded-2xl shadow-[2px_2px_0px_0px_#000]">
-                  <div>
-                    <div className="text-xs font-black uppercase text-black">Reset Local Progress</div>
-                    <div className="text-[11px] font-bold text-neutral-600">Clear cached streaks and token counts</div>
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (window.confirm('Reset all local streak and win data?')) {
-                        localStorage.clear()
-                        window.location.reload()
-                      }
-                    }}
-                    className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 border-2 border-black rounded-xl font-mono text-xs font-black cursor-pointer shadow-[2px_2px_0px_0px_#000]"
-                  >
-                    RESET
-                  </button>
-                </div>
               </div>
-
-              <Button
-                variant="primary"
-                fullWidth
-                className="py-2.5 text-xs font-black uppercase tracking-wider"
-                onClick={onClose}
-              >
-                Save &amp; Close
-              </Button>
             </Card>
           </motion.div>
         </motion.div>

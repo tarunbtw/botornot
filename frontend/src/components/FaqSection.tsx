@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
-import { ChevronDown, ChevronUp, HelpCircle, Settings } from 'lucide-react'
-import { Button } from './UI'
+import { NavArrowDown, NavArrowUp, HelpCircle } from 'iconoir-react'
 
 export interface FAQItem {
   q: string
@@ -21,16 +20,8 @@ export const FAQS: FAQItem[] = [
     a: 'No! You can play instantly as a guest without any registration. Your tokens, streaks, and match stats are tracked automatically.',
   },
   {
-    q: 'Why do real humans sometimes sound like bots?',
-    a: 'Meme slang, brief one-word answers, rapid texting habits, and lack of context can frequently make genuine people sound repetitive or robotic.',
-  },
-  {
     q: 'Why do modern AI bots sound so convincingly human?',
     a: 'Today’s neural language models are trained on billions of real conversations, allowing them to imitate colloquialisms, humor, natural pauses, and emotional nuances.',
-  },
-  {
-    q: 'Is the chat safe and anonymous?',
-    a: 'Yes. All chats are completely anonymous, ephemeral, and strictly moderated for gameplay.',
   },
 ]
 
@@ -38,50 +29,41 @@ interface FaqSectionProps {
   onOpenSettings?: () => void
 }
 
-export const FaqSection: React.FC<FaqSectionProps> = ({ onOpenSettings }) => {
+export const FaqSection: React.FC<FaqSectionProps> = ({ onOpenSettings: _onOpenSettings }) => {
   const [openFaq, setOpenFaq] = useState<number | null>(0)
 
   return (
-    <section className="mb-10">
+    <section>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-display font-black text-2xl uppercase tracking-tight text-black flex items-center gap-2">
-          <HelpCircle className="w-6 h-6 text-black" />
+        <h2 className="font-display font-black text-2xl uppercase tracking-tight text-black dark:text-white flex items-center gap-2">
+          <HelpCircle className="w-5 h-5 text-black dark:text-white" />
           Frequently Asked Questions
         </h2>
-        {onOpenSettings && (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onOpenSettings}
-            className="text-xs py-1.5 px-3 border-2"
-          >
-            <Settings className="w-3.5 h-3.5" /> Rules &amp; Settings
-          </Button>
-        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+      {/* Clean vertical stack of 4 FAQs */}
+      <div className="flex flex-col gap-3">
         {FAQS.map((faq, idx) => {
           const isOpen = openFaq === idx
           return (
             <div
               key={idx}
-              className="bg-white rounded-2xl border-3 border-black shadow-[3px_3px_0px_0px_#000] overflow-hidden"
+              className="bg-white dark:bg-[#181820] rounded-xl border border-black/15 dark:border-neutral-800 shadow-xs dark:shadow-none overflow-hidden"
             >
               <button
                 type="button"
                 onClick={() => setOpenFaq(isOpen ? null : idx)}
-                className="w-full p-4 text-left flex items-center justify-between gap-3 font-display font-black text-sm text-black cursor-pointer hover:bg-neutral-50 transition-colors"
+                className="w-full p-4 text-left flex items-center justify-between gap-3 font-display font-black text-sm text-black dark:text-white cursor-pointer hover:bg-neutral-50 dark:hover:bg-[#1F1F2B] transition-colors"
               >
                 <span className="leading-snug">{faq.q}</span>
                 {isOpen ? (
-                  <ChevronUp className="w-4 h-4 shrink-0 text-black" />
+                  <NavArrowUp className="w-4 h-4 shrink-0 text-black dark:text-white" />
                 ) : (
-                  <ChevronDown className="w-4 h-4 shrink-0 text-black" />
+                  <NavArrowDown className="w-4 h-4 shrink-0 text-black dark:text-white" />
                 )}
               </button>
               {isOpen && (
-                <div className="px-4 pb-4 pt-1 text-xs font-bold text-neutral-700 leading-relaxed border-t-2 border-black/10">
+                <div className="px-4 pb-4 pt-1 text-xs font-bold text-neutral-600 dark:text-neutral-400 leading-relaxed border-t border-black/10 dark:border-neutral-800">
                   {faq.a}
                 </div>
               )}

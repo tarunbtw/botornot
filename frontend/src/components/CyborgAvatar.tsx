@@ -12,7 +12,7 @@ const SIZES = {
   xl: 'w-32 h-32',
 }
 
-export function CyborgAvatar({ size = 'md', className = '', showShadow = true }: CyborgAvatarProps) {
+export function CyborgAvatar({ size = 'md', className = '', showShadow = false }: CyborgAvatarProps) {
   const sizeClass = SIZES[size] || SIZES.md
 
   return (
@@ -22,7 +22,7 @@ export function CyborgAvatar({ size = 'md', className = '', showShadow = true }:
       <svg
         viewBox="0 0 28 28"
         className={`w-full h-full ${
-          showShadow ? 'drop-shadow-[3px_3px_0px_rgba(0,0,0,1)]' : ''
+          showShadow ? 'drop-shadow-[2px_2px_0px_rgba(0,0,0,1)]' : ''
         }`}
         style={{ shapeRendering: 'crispEdges', imageRendering: 'pixelated' }}
         xmlns="http://www.w3.org/2000/svg"
