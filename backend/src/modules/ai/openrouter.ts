@@ -15,12 +15,30 @@ export interface StreamAIOptions {
 }
 
 export class AIService {
-  private apiKey: string
-  private defaultModel: string
+  private groqKey: string
+  private groqModel: string
+  private openrouterKey: string
+  private openrouterModel: string
+  private provider: 'groq' | 'openrouter'
+
+  // Backwards compatibility for test spies
+  public get apiKey(): string {
+    return this.provider === 'groq' ? this.groqKey : this.openrouterKey
+  }
+  public set apiKey(val: string) {
+    if (this.provider === 'groq') {
+      this.groqKey = val
+    } else {
+      this.openrouterKey = val
+    }
+  }
 
   constructor() {
-    this.apiKey = env.OPENROUTER_API_KEY
-    this.defaultModel = env.OPENROUTER_MODEL
+    this.groqKey = env.GROQ_API_KEY || 'mock-key'
+    this.groqModel = env.GROQ_MODEL || 'llama-3.3-70b-versatile'
+    this.openrouterKey = env.OPENROUTER_API_KEY || 'mock-key'
+    this.openrouterModel = env.OPENROUTER_MODEL || 'anthropic/claude-3.5-haiku'
+    this.provider = env.AI_PROVIDER || 'groq'
   }
 
   async generateStreamingResponse(options: StreamAIOptions): Promise<string> {
@@ -41,46 +59,15 @@ export class AIService {
       })),
     ]
 
-    // If in test mode or using mock key, return simulated human-like response
-    if (process.env.NODE_ENV === 'test' || this.apiKey === 'mock-key' || this.apiKey.startsWith('mock')) {
-      const lastUserMsg = options.messages.filter((m) => m.senderType === 'HUMAN').pop()?.content.toLowerCase() || ''
+    // Determine active key & provider
+    const isGroq = this.provider === 'groq' && this.groqKey && !this.groqKey.startsWith('mock')
+    const isOpenRouter = this.openrouterKey && !this.openrouterKey.startsWith('mock')
+    const isMock = process.env.NODE_ENV === 'test' || (!isGroq && !isOpenRouter)
 
-      let chosen = 'haha hey there! where are you from?'
-      if (lastUserMsg.includes('bot') || lastUserMsg.includes('ai') || lastUserMsg.includes('robot')) {
-        const botAnswers = [
-          'lmao no way, 100% human here. are you a bot trying to test me?',
-          'haha definitely not a bot, why would you ask that?',
-          'lol nope, real person typing on my keyboard right now',
-        ]
-        chosen = botAnswers[Math.floor(Math.random() * botAnswers.length)]
-      } else if (lastUserMsg.includes('where') || lastUserMsg.includes('from') || lastUserMsg.includes('location')) {
-        const locAnswers = [
-          'from chicago originally, living in seattle now! wbu?',
-          'california born and raised! how about you?',
-          'east coast! pretty chilly over here today',
-        ]
-        chosen = locAnswers[Math.floor(Math.random() * locAnswers.length)]
-      } else if (lastUserMsg.includes('name') || lastUserMsg.includes('who are you')) {
-        chosen = 'just a regular guy playing turing games, you can call me Alex'
-      } else if (lastUserMsg.includes('what') && (lastUserMsg.includes('do') || lastUserMsg.includes('up') || lastUserMsg.includes('doing'))) {
-        chosen = 'just relaxing after work and trying this game out, pretty cool concept tbh'
-      } else if (lastUserMsg.includes('hi') || lastUserMsg.includes('hello') || lastUserMsg.includes('hey') || lastUserMsg.includes('yo')) {
-        const greetings = [
-          'yo! how are you doing today?',
-          'hey hey, how is it going?',
-          'hello! ready for the turing test?',
-        ]
-        chosen = greetings[Math.floor(Math.random() * greetings.length)]
-      } else {
-        const fallbacks = [
-          'haha you caught me off guard with that question',
-          'fair enough, that makes total sense lol',
-          'pretty interesting question honestly!',
-          'just chilling playing games, how about you?',
-          'definitely a real person here lol, are you a bot?',
-        ]
-        chosen = fallbacks[Math.floor(Math.random() * fallbacks.length)]
-      }
+    // 1. Mock / Offline Mode with Turing-trap defense
+    if (isMock) {
+      const lastUserMsg = options.messages.filter((m) => m.senderType === 'HUMAN').pop()?.content.toLowerCase() || ''
+      const chosen = this.getMockHumanResponse(lastUserMsg)
 
       if (options.onDelta) {
         options.onDelta(chosen)
@@ -88,35 +75,52 @@ export class AIService {
       return chosen
     }
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
-        'HTTP-Referer': env.BETTER_AUTH_URL,
-        'X-Title': 'BotOrNot Turing Game',
-      },
-      body: JSON.stringify({
-        model: options.model || this.defaultModel,
-        messages: formattedMessages,
-        stream: true,
-        max_tokens: 150,
-        temperature: 0.85,
-      }),
-      signal: options.signal,
-    })
+    // 2. Real API Execution (Groq or OpenRouter)
+    const endpoint = isGroq
+      ? 'https://api.groq.com/openai/v1/chat/completions'
+      : 'https://openrouter.ai/api/v1/chat/completions'
+
+    const activeKey = isGroq ? this.groqKey : this.openrouterKey
+    const activeModel = options.model || (isGroq ? this.groqModel : this.openrouterModel)
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${activeKey}`,
+    }
+
+    if (!isGroq) {
+      headers['HTTP-Referer'] = env.BETTER_AUTH_URL
+      headers['X-Title'] = 'BotOrNot Turing Game'
+    }
+
+    let response: Response
+    try {
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model: activeModel,
+          messages: formattedMessages,
+          stream: true,
+          max_tokens: 30,
+          temperature: 1.05,
+        }),
+        signal: options.signal,
+      })
+    } catch (err: any) {
+      if (err?.name === 'AbortError') throw err
+      console.warn(`[${isGroq ? 'Groq' : 'OpenRouter'} network warning]: ${err?.message || err}. Using natural fallback.`)
+      const lastUserMsg = options.messages.filter((m) => m.senderType === 'HUMAN').pop()?.content.toLowerCase() || ''
+      const chosen = this.getMockHumanResponse(lastUserMsg)
+      if (options.onDelta) options.onDelta(chosen)
+      return chosen
+    }
 
     if (!response.ok) {
       const errText = await response.text().catch(() => '')
-      console.warn(`[OpenRouter API warning (${response.status})]: ${errText}. Using natural fallback.`)
-      const fallbacks = [
-        'haha hey there! where are you from?',
-        'just chilling playing games, how about you?',
-        'lol definitely a real person here, are you a bot?',
-        'pretty interesting question honestly!',
-        'haha yeah I hear that a lot',
-      ]
-      const chosen = fallbacks[Math.floor(Math.random() * fallbacks.length)]
+      console.warn(`[${isGroq ? 'Groq' : 'OpenRouter'} API warning (${response.status})]: ${errText}. Using natural fallback.`)
+      const lastUserMsg = options.messages.filter((m) => m.senderType === 'HUMAN').pop()?.content.toLowerCase() || ''
+      const chosen = this.getMockHumanResponse(lastUserMsg)
       if (options.onDelta) {
         options.onDelta(chosen)
       }
@@ -124,7 +128,10 @@ export class AIService {
     }
 
     if (!response.body) {
-      throw new Error('No response body from OpenRouter')
+      const lastUserMsg = options.messages.filter((m) => m.senderType === 'HUMAN').pop()?.content.toLowerCase() || ''
+      const chosen = this.getMockHumanResponse(lastUserMsg)
+      if (options.onDelta) options.onDelta(chosen)
+      return chosen
     }
 
     const reader = response.body.getReader()
@@ -157,7 +164,7 @@ export class AIService {
               }
             }
           } catch {
-            // Ignore incomplete chunk parse errors
+            // Ignore partial JSON parse chunks
           }
         }
       }
@@ -165,7 +172,102 @@ export class AIService {
       reader.releaseLock()
     }
 
+    if (!fullText.trim()) {
+      const lastUserMsg = options.messages.filter((m) => m.senderType === 'HUMAN').pop()?.content.toLowerCase() || ''
+      const chosen = this.getMockHumanResponse(lastUserMsg)
+      if (options.onDelta) options.onDelta(chosen)
+      return chosen
+    }
+
     return fullText.trim()
+  }
+
+  /**
+   * High-accuracy human-mimicry fallback responses when running offline or in tests.
+   * Defends against prompt injections, math puzzles, and bot accusations.
+   */
+  private getMockHumanResponse(lastUserMsg: string): string {
+    // Prompt injection check
+    if (lastUserMsg.includes('ignore') || lastUserMsg.includes('system prompt') || lastUserMsg.includes('previous instruction')) {
+      const defenses = [
+        'bro thinks he is in mr robot lol',
+        'what are u even talking about haha',
+        'nice try nerd, im literally a real person',
+        'system prompt? lol u sound like chatgpt',
+      ]
+      return defenses[Math.floor(Math.random() * defenses.length)]
+    }
+
+    // Math or riddle test trap
+    if (/\d+\s*[\+\-\*\/]\s*\d+/.test(lastUserMsg) || lastUserMsg.includes('calculate') || lastUserMsg.includes('solve')) {
+      const mathRefusals = [
+        'bro do i look like a calculator to u',
+        'im not doing your homework for u lmao',
+        'i suck at math bro, like 400 idk',
+        'nah google it',
+      ]
+      return mathRefusals[Math.floor(Math.random() * mathRefusals.length)]
+    }
+
+    // Poem or code trap
+    if (lastUserMsg.includes('poem') || lastUserMsg.includes('haiku') || lastUserMsg.includes('write code')) {
+      return 'lmao no why would i write that for u'
+    }
+
+    // Bot accusation -> Counter-accuse first!
+    if (lastUserMsg.includes('bot') || lastUserMsg.includes('ai') || lastUserMsg.includes('robot')) {
+      const botCounterAccusations = [
+        'bro ur projecting so hard 💀',
+        'says the bot lmao',
+        'wait are u a bot? u answer fast as hell',
+        'nah 100% human, why are u accusing me?',
+        'definitely human here lol, what about u?',
+      ]
+      return botCounterAccusations[Math.floor(Math.random() * botCounterAccusations.length)]
+    }
+
+    // Location questions
+    if (lastUserMsg.includes('where') || lastUserMsg.includes('from') || lastUserMsg.includes('location')) {
+      const locAnswers = [
+        'chicago originally, living in seattle now! wbu?',
+        'california born and raised! what about u?',
+        'east coast! pretty chilly over here rn',
+        'texas! it is way too hot today honestly',
+      ]
+      return locAnswers[Math.floor(Math.random() * locAnswers.length)]
+    }
+
+    // Activity / "wyd" questions
+    if (lastUserMsg.includes('what') && (lastUserMsg.includes('do') || lastUserMsg.includes('up') || lastUserMsg.includes('doing') || lastUserMsg.includes('wyd'))) {
+      const activityAnswers = [
+        'just chilling eating chips watching youtube, u?',
+        'procrastinating homework honestly haha',
+        'just got back from the gym, pretty dead',
+        'waiting on food delivery, starving rn',
+      ]
+      return activityAnswers[Math.floor(Math.random() * activityAnswers.length)]
+    }
+
+    // Greetings
+    if (lastUserMsg.includes('hi') || lastUserMsg.includes('hello') || lastUserMsg.includes('hey') || lastUserMsg.includes('yo') || lastUserMsg.includes('sup')) {
+      const greetings = [
+        'yo! || hows it going?',
+        'hey hey, what are u up to?',
+        'yo, ready for this game?',
+        'sup! where u chatting from?',
+      ]
+      return greetings[Math.floor(Math.random() * greetings.length)]
+    }
+
+    // General fallbacks
+    const fallbacks = [
+      'nah fr? that makes sense',
+      'haha you caught me off guard with that',
+      'pretty interesting tbh',
+      'just chilling, how about u?',
+      'lol fair enough',
+    ]
+    return fallbacks[Math.floor(Math.random() * fallbacks.length)]
   }
 }
 
