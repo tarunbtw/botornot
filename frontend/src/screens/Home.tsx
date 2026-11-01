@@ -13,6 +13,7 @@ import {
 } from 'iconoir-react'
 import { FaqSection } from '../components/FaqSection'
 import { SettingsModal } from '../components/SettingsModal'
+import { DesktopSideBanner, MobileStickyBanner } from '../components/AdBanner'
 
 interface HomeProps {
   coins: number
@@ -56,92 +57,105 @@ export const Home: React.FC<HomeProps> = ({
   return (
     <div className="w-full select-none py-6 sm:py-8 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto space-y-8 sm:space-y-10 transition-colors">
       {/* ============================================================ */}
-      {/* HERO SECTION: High-Impact, Minimalist, Turing Game Loop       */}
+      {/* HERO SECTION: Flanked by Desktop Ads (Matching Figma Mockup) */}
       {/* ============================================================ */}
-      <section className="flex flex-col items-center text-center max-w-2xl mx-auto pt-2 sm:pt-6">
-        {/* Subtle Badge */}
-        <div className="inline-flex items-center gap-1.5 bg-[#FFD100] border border-black/20 rounded-full px-3 py-1 shadow-xs mb-5 font-mono text-xs font-bold uppercase tracking-wider text-black">
-          <Sparks className="w-3.5 h-3.5 text-black" />
-          <span>2-Minute Social Turing Game</span>
+      <section className="relative flex items-center justify-between gap-4 xl:gap-6 pt-2 sm:pt-6">
+        {/* Left Desktop Ad Banner (Positioned directly beside Hero) */}
+        <div className="hidden xl:flex shrink-0 w-52 2xl:w-60 justify-start">
+          <DesktopSideBanner side="left" />
         </div>
 
-        {/* Central Character Avatar */}
-        <div className="mb-4">
-          <CyborgAvatar size="xl" />
-        </div>
+        {/* Center Hero Content */}
+        <div className="flex-1 flex flex-col items-center text-center max-w-lg lg:max-w-xl mx-auto min-w-0">
+          {/* Subtle Badge */}
+          <div className="inline-flex items-center gap-1.5 bg-[#FFD100] border border-black/20 rounded-full px-3 py-1 shadow-xs mb-5 font-mono text-xs font-bold uppercase tracking-wider text-black">
+            <Sparks className="w-3.5 h-3.5 text-black" />
+            <span>2-Minute Social Turing Game</span>
+          </div>
 
-        {/* Punchy Headline */}
-        <h1 className="text-4xl sm:text-6xl font-display font-black leading-[1.05] tracking-tight uppercase text-black dark:text-white mb-3">
-          Human <span className="font-medium text-neutral-400">or</span>{' '}
-          <span className="bg-[#FFD100] text-black px-3 py-0.5 rounded-2xl border border-black/25 shadow-xs inline-block">
-            Bot?
-          </span>
-        </h1>
+          {/* Central Character Avatar */}
+          <div className="mb-4">
+            <CyborgAvatar size="xl" />
+          </div>
 
-        <p className="text-sm sm:text-base font-bold text-neutral-600 dark:text-neutral-300 max-w-lg mb-8 leading-relaxed">
-          Chat with someone for <strong>2 minutes</strong>. Then guess if it was a real human or an AI bot.
-        </p>
+          {/* Punchy Headline */}
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-display font-black leading-[1.05] tracking-tight uppercase text-black dark:text-white mb-3">
+            Human <span className="font-medium text-neutral-400">or</span>{' '}
+            <span className="bg-[#FFD100] text-black px-3 py-0.5 rounded-2xl border border-black/25 shadow-xs inline-block">
+              Bot?
+            </span>
+          </h1>
 
-        {/* Primary Call to Action */}
-        <div className="w-full max-w-md flex flex-col sm:flex-row items-center gap-3">
-          <Button
-            id="start-game-button"
-            variant="primary"
-            size="xl"
-            fullWidth
-            onClick={onStartMatch}
-            className="py-4 text-base sm:text-lg font-black bg-[#FFD100] text-black border border-black/80 shadow-xs flex-1"
-          >
-            <Flash className="w-5 h-5 text-black" />
-            <span>PLAY NOW</span>
-          </Button>
+          <p className="text-sm sm:text-base font-bold text-neutral-600 dark:text-neutral-300 max-w-lg mb-8 leading-relaxed">
+            Chat with someone for <strong>2 minutes</strong>. Then guess if it was a real human or an AI bot.
+          </p>
 
-          {onOpenQuests && (
+          {/* Primary Call to Action */}
+          <div className="w-full max-w-md flex flex-col sm:flex-row items-center gap-3">
             <Button
-              variant="secondary"
+              id="start-game-button"
+              variant="primary"
               size="xl"
-              onClick={onOpenQuests}
-              className="w-full sm:w-auto py-4 px-5 text-sm font-black border border-neutral-300 dark:border-neutral-700 shadow-xs relative"
-              title="Daily Quests & Check-In"
+              fullWidth
+              onClick={onStartMatch}
+              className="py-4 text-base sm:text-lg font-black bg-[#FFD100] text-black border border-black/80 shadow-xs flex-1"
             >
-              <Gift className="w-5 h-5 text-black dark:text-white" />
-              <span>Quests</span>
-              {unclaimedQuestsCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white font-mono font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center border border-black animate-bounce">
-                  {unclaimedQuestsCount}
-                </span>
-              )}
+              <Flash className="w-5 h-5 text-black" />
+              <span>PLAY NOW</span>
             </Button>
-          )}
+
+            {onOpenQuests && (
+              <Button
+                variant="secondary"
+                size="xl"
+                onClick={onOpenQuests}
+                className="w-full sm:w-auto py-4 px-5 text-sm font-black border border-neutral-300 dark:border-neutral-700 shadow-xs relative"
+                title="Daily Quests & Check-In"
+              >
+                <Gift className="w-5 h-5 text-black dark:text-white" />
+                <span>Quests</span>
+                {unclaimedQuestsCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white font-mono font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center border border-black animate-bounce">
+                    {unclaimedQuestsCount}
+                  </span>
+                )}
+              </Button>
+            )}
+          </div>
+
+          {/* Quick Personal Stats Row */}
+          <div className="grid grid-cols-3 gap-3 w-full max-w-md mt-6">
+            <div className="p-3 bg-white dark:bg-[#181820] rounded-xl border border-black/15 dark:border-neutral-800 text-center shadow-xs">
+              <div className="flex items-center justify-center gap-1 text-[10px] font-mono font-black uppercase text-neutral-500 dark:text-neutral-400 mb-0.5">
+                <PrecisionTool className="w-3.5 h-3.5 text-blue-500" />
+                <span>Accuracy</span>
+              </div>
+              <div className="font-mono font-black text-lg text-black dark:text-white">{accuracy}%</div>
+            </div>
+
+            <div className="p-3 bg-white dark:bg-[#181820] rounded-xl border border-black/15 dark:border-neutral-800 text-center shadow-xs">
+              <div className="flex items-center justify-center gap-1 text-[10px] font-mono font-black uppercase text-neutral-500 dark:text-neutral-400 mb-0.5">
+                <Trophy className="w-3.5 h-3.5 text-purple-500" />
+                <span>Score</span>
+              </div>
+              <div className="font-mono font-black text-lg text-black dark:text-white">
+                {wins}W / {losses}L
+              </div>
+            </div>
+
+            <div className="p-3 bg-white dark:bg-[#181820] rounded-xl border border-black/15 dark:border-neutral-800 text-center shadow-xs">
+              <div className="flex items-center justify-center gap-1 text-[10px] font-mono font-black uppercase text-neutral-500 dark:text-neutral-400 mb-0.5">
+                <FireFlame className="w-3.5 h-3.5 text-orange-500" />
+                <span>Streak</span>
+              </div>
+              <div className="font-mono font-black text-lg text-black dark:text-white">{streak}</div>
+            </div>
+          </div>
         </div>
 
-        {/* Quick Personal Stats Row */}
-        <div className="grid grid-cols-3 gap-3 w-full max-w-md mt-6">
-          <div className="p-3 bg-white dark:bg-[#181820] rounded-xl border border-black/15 dark:border-neutral-800 text-center shadow-xs">
-            <div className="flex items-center justify-center gap-1 text-[10px] font-mono font-black uppercase text-neutral-500 dark:text-neutral-400 mb-0.5">
-              <PrecisionTool className="w-3.5 h-3.5 text-blue-500" />
-              <span>Accuracy</span>
-            </div>
-            <div className="font-mono font-black text-lg text-black dark:text-white">{accuracy}%</div>
-          </div>
-
-          <div className="p-3 bg-white dark:bg-[#181820] rounded-xl border border-black/15 dark:border-neutral-800 text-center shadow-xs">
-            <div className="flex items-center justify-center gap-1 text-[10px] font-mono font-black uppercase text-neutral-500 dark:text-neutral-400 mb-0.5">
-              <Trophy className="w-3.5 h-3.5 text-purple-500" />
-              <span>Score</span>
-            </div>
-            <div className="font-mono font-black text-lg text-black dark:text-white">
-              {wins}W / {losses}L
-            </div>
-          </div>
-
-          <div className="p-3 bg-white dark:bg-[#181820] rounded-xl border border-black/15 dark:border-neutral-800 text-center shadow-xs">
-            <div className="flex items-center justify-center gap-1 text-[10px] font-mono font-black uppercase text-neutral-500 dark:text-neutral-400 mb-0.5">
-              <FireFlame className="w-3.5 h-3.5 text-orange-500" />
-              <span>Streak</span>
-            </div>
-            <div className="font-mono font-black text-lg text-black dark:text-white">{streak}</div>
-          </div>
+        {/* Right Desktop Ad Banner (Positioned directly beside Hero) */}
+        <div className="hidden xl:flex shrink-0 w-52 2xl:w-60 justify-end">
+          <DesktopSideBanner side="right" />
         </div>
       </section>
 
@@ -334,6 +348,11 @@ export const Home: React.FC<HomeProps> = ({
         sound={true}
         onToggleSound={() => {}}
       />
+
+      {/* Mobile Sticky Horizontal Ad Banner (Bottom) */}
+      <div className="xl:hidden">
+        <MobileStickyBanner />
+      </div>
     </div>
   )
 }
