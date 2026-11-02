@@ -64,6 +64,7 @@ export default function App() {
   const [freeExtendedMessagesLeft, setFreeExtendedMessagesLeft] = useState<number>(0)
   const [opponentTyping, setOpponentTyping] = useState<boolean>(false)
   const [isOpponentFirstTurn, setIsOpponentFirstTurn] = useState<boolean>(false)
+  const [isStrangerExited, setIsStrangerExited] = useState<boolean>(false)
   const isAiRespondingRef = useRef<boolean>(false)
   const aiTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
   const aiGenerationIdRef = useRef<number>(0)
@@ -312,6 +313,7 @@ export default function App() {
         setIsExtendedChat(false)
         setFreeExtendedMessagesLeft(0)
         setIsOpponentFirstTurn(!event.payload.isFirstSender)
+        setIsStrangerExited(false)
         setOpponentTyping(false)
         setUserGuess(null)
         setIsVerdictPending(false)
@@ -364,7 +366,11 @@ export default function App() {
       }
 
       if (event.type === 'session.ended' || event.type === 'guess.request') {
-        setGameState('GUESS')
+        if (isExtendedChat) {
+          setIsStrangerExited(true)
+        } else {
+          setGameState('GUESS')
+        }
       }
 
       if (event.type === 'guess.result') {
@@ -422,6 +428,7 @@ export default function App() {
         setChatMessages([])
         setChatTimeLeft(120)
         setIsExtendedChat(false)
+        setIsStrangerExited(false)
         setFreeExtendedMessagesLeft(0)
         setGameState('CHAT')
         resetMatchPersona()
@@ -467,19 +474,23 @@ export default function App() {
   }, [gameState])
 
   const triggerAiOpponentReply = async (history: Message[]) => {
-    // STRICT TURN-TAKING: Don't reply if last message was already from opponent
-    const lastMsg = history[history.length - 1]
-    if (lastMsg && lastMsg.sender === 'opponent') return
+    // In normal mode: STRICT TURN-TAKING: Don't reply if last message was already from opponent
+    if (!isExtendedChat) {
+      const lastMsg = history[history.length - 1]
+      if (lastMsg && lastMsg.sender === 'opponent') return
+    }
 
     const thisGenId = ++aiGenerationIdRef.current
     isAiRespondingRef.current = true
 
     try {
       const result = await fetchAIResponse(
-        history.map((m) => ({
-          sender: m.sender,
-          text: m.text,
-        }))
+        history
+          .filter((m): m is Message & { sender: 'user' | 'opponent' } => m.sender !== 'system')
+          .map((m) => ({
+            sender: m.sender,
+            text: m.text,
+          }))
       )
 
       if (thisGenId !== aiGenerationIdRef.current) return
@@ -505,10 +516,10 @@ export default function App() {
 
       if (thisGenId !== aiGenerationIdRef.current) return
 
-      // 4. Deliver SINGLE message with strict invariant: NEVER two opponent messages in a row
+      // 4. Deliver message
       if (result.text) {
         setChatMessages((prev) => {
-          if (prev.length > 0 && prev[prev.length - 1].sender === 'opponent') {
+          if (!isExtendedChat && prev.length > 0 && prev[prev.length - 1].sender === 'opponent') {
             return prev
           }
           return [
@@ -538,12 +549,14 @@ export default function App() {
     const trimmed = text.trim()
     if (!trimmed) return
 
-    // Can't send if it's the opponent's first turn to start
-    if (chatMessages.length === 0 && isOpponentFirstTurn) return
+    // In normal mode: Can't send if it's the opponent's first turn to start
+    if (!isExtendedChat && chatMessages.length === 0 && isOpponentFirstTurn) return
 
-    // STRICT TURN-TAKING: User can't send if last message was already from user
-    const lastMsg = chatMessages[chatMessages.length - 1]
-    if (lastMsg && lastMsg.sender === 'user') return
+    // In normal mode: STRICT TURN-TAKING: User can't send if last message was already from user
+    if (!isExtendedChat) {
+      const lastMsg = chatMessages[chatMessages.length - 1]
+      if (lastMsg && lastMsg.sender === 'user') return
+    }
 
     // Cancel any pending AI timers/generations
     clearAiTimers()
@@ -625,6 +638,35 @@ export default function App() {
     }
   }
 
+  // --- Handle 30-Second Turn / Inactivity Timeout ---
+  const handleTypingTimeout = (culprit: 'user' | 'opponent') => {
+    clearAiTimers()
+    isAiRespondingRef.current = false
+    setIsOpponentFirstTurn(false)
+
+    if (culprit === 'user') {
+      // The user failed to send within 30s: user loses streak!
+      setStreak(0)
+    }
+    // If culprit was 'opponent', user does not lose or gain streak: streak remains tie/unchanged!
+
+    // Abort game and start a new game with matchmaking immediately
+    if (activeBackendGameIdRef.current) {
+      try {
+        gameSocket.send({
+          type: 'game.leave',
+          payload: { gameId: activeBackendGameIdRef.current },
+        })
+      } catch {}
+      activeBackendGameIdRef.current = null
+    }
+
+    setUserGuess(null)
+    setIsVerdictPending(false)
+    setVerdictInfo(null)
+    setGameState('MATCHMAKING')
+  }
+
   // --- Handle Extend Chat ---
   const handleExtendChat = () => {
     setIsExtendedChat(true)
@@ -639,8 +681,8 @@ export default function App() {
         gameState === 'CHAT' ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-screen'
       }`}
     >
-      {/* Top Navbar in Yellow & White Neo-Brutalist Theme - Hidden during Chat for distractionless experience */}
-      {gameState !== 'CHAT' && (
+      {/* Top Navbar in Yellow & White Neo-Brutalist Theme - Hidden during Chat & Matchmaking for distractionless experience */}
+      {gameState !== 'CHAT' && gameState !== 'MATCHMAKING' && (
         <Navbar
           coins={coins}
           streak={streak}
@@ -735,6 +777,8 @@ export default function App() {
                 }}
                 onForfeitMatch={handleForfeitMatch}
                 onWatchAdForCoins={handleRecordAdWatched}
+                onTypingTimeout={handleTypingTimeout}
+                isStrangerExited={isStrangerExited}
               />
             </motion.div>
           )}

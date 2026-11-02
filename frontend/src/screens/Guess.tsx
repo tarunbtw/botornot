@@ -72,7 +72,7 @@ export const Guess: React.FC<GuessProps> = ({
   }
 
   const handleExtendWithVideo = () => {
-    if (watchingVideo || userGuess !== null) return
+    if (watchingVideo) return
     setWatchingVideo(true)
     setTimeout(() => {
       setWatchingVideo(false)
@@ -173,21 +173,6 @@ export const Guess: React.FC<GuessProps> = ({
             </button>
           </motion.div>
         </div>
-
-        {/* Extend Chat Option */}
-        <div className="w-full max-w-sm pt-2">
-          <Button
-            variant="secondary"
-            size="md"
-            fullWidth
-            onClick={handleExtendWithVideo}
-            disabled={watchingVideo || userGuess !== null}
-            className="py-2.5 text-xs font-black uppercase tracking-wider shadow-xs"
-          >
-            <PlaySolid className="w-4 h-4 mr-1 text-black dark:text-white" />
-            {watchingVideo ? 'Extending...' : 'Extend Chat (+5 Min)'}
-          </Button>
-        </div>
       </div>
 
       {/* Pop-Up Result Box Overlay */}
@@ -281,6 +266,17 @@ export const Guess: React.FC<GuessProps> = ({
                       >
                         <Refresh className="w-4 h-4 mr-1" />
                         Play Again
+                      </Button>
+                      <Button
+                        variant="dark"
+                        size="md"
+                        fullWidth
+                        onClick={handleExtendWithVideo}
+                        disabled={watchingVideo}
+                        className="py-2.5 text-xs font-black uppercase tracking-wider shadow-xs"
+                      >
+                        <PlaySolid className="w-4 h-4 mr-1" />
+                        {watchingVideo ? 'Extending...' : 'Extend Chat (Watch Ad)'}
                       </Button>
                       <Button
                         variant="secondary"

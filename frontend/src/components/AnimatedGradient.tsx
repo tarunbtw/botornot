@@ -1,5 +1,4 @@
 import React, { useId } from 'react'
-import { Sparks } from 'iconoir-react'
 
 interface AnimatedGradientProps {
   className?: string
@@ -59,7 +58,6 @@ export const AnimatedGradient: React.FC<AnimatedGradientProps> = ({
       {showBadge && (
         <div className="absolute inset-0 flex items-center justify-center p-2 pointer-events-none">
           <div className="backdrop-blur-md bg-black/45 border border-white/20 rounded-full px-2.5 py-1 flex items-center gap-1.5 shadow-sm">
-            <Sparks className="w-3 h-3 text-[#FFD100] animate-pulse" />
             <span className="font-mono font-bold text-[10px] text-white tracking-wider">
               {badgeText}
             </span>

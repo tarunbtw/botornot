@@ -2,7 +2,7 @@ import React from 'react'
 import { CyborgAvatar } from '../components/CyborgAvatar'
 import { Button } from '../components/UI'
 import { motion } from 'framer-motion'
-import { Sparks, Xmark } from 'iconoir-react'
+import { Xmark } from 'iconoir-react'
 
 interface MatchmakingProps {
   onCancel: () => void
@@ -37,7 +37,6 @@ export const Matchmaking: React.FC<MatchmakingProps> = ({ onCancel }) => {
       {/* Clean Status & Connecting State */}
       <div className="text-center space-y-2 max-w-sm mt-4 mb-8">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FFD100] border border-black text-xs font-mono font-black uppercase shadow-[1px_1px_0px_0px_#000] text-black">
-          <Sparks className="w-3.5 h-3.5 text-black" />
           <span>Matchmaking</span>
         </div>
         <h2 className="text-2xl sm:text-3xl font-display font-black uppercase tracking-tight text-black dark:text-white">

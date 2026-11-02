@@ -4,7 +4,6 @@ import { CoinIcon } from '../components/CoinIcon'
 import {
   Send,
   Clock,
-  Sparks,
   WarningTriangle,
   Xmark,
   PlaySolid,
@@ -27,6 +26,8 @@ interface ChatProps {
   onForfeitMatch?: () => void
   onEndExtendedChat?: () => void
   onWatchAdForCoins?: () => void
+  onTypingTimeout?: (culprit: 'user' | 'opponent') => void
+  isStrangerExited?: boolean
 }
 
 export const Chat: React.FC<ChatProps> = ({
@@ -42,11 +43,16 @@ export const Chat: React.FC<ChatProps> = ({
   onForfeitMatch,
   onEndExtendedChat,
   onWatchAdForCoins,
+  onTypingTimeout,
+  isStrangerExited = false,
 }) => {
   const [inputText, setInputText] = useState('')
   const [showForfeitModal, setShowForfeitModal] = useState(false)
   const [showOutOfCoinsModal, setShowOutOfCoinsModal] = useState(false)
   const [watchingAdForCoins, setWatchingAdForCoins] = useState(false)
+
+  // 30-Second Turn / Inactivity Circular Timer
+  const [turnTimeLeft, setTurnTimeLeft] = useState<number>(30)
 
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isTypingActiveRef = useRef(false)
@@ -78,16 +84,35 @@ export const Chat: React.FC<ChatProps> = ({
   const hasFreeMessage = isExtended && freeExtendedMessagesLeft > 0
   const isOutOfCoinsForNextMessage = isExtended && !hasFreeMessage && coins < 1
 
-  // Strict Turn-Taking:
-  // User cannot send if:
-  // 1. It's match start and opponent has the first turn
-  // 2. The last sent message was from the user (waiting for opponent reply)
-  // 3. Opponent is currently typing
+  // Strict Turn-Taking (Only in normal 2-minute mode. In extended chat, ANY party can send as many messages as they want without restriction!)
   const lastMessage = messages[messages.length - 1]
-  const isWaitingForOpponent =
-    (messages.length === 0 && isOpponentFirstTurn) ||
-    lastMessage?.sender === 'user' ||
-    opponentTyping
+  const isWaitingForOpponent = isExtended
+    ? false
+    : (messages.length === 0 && isOpponentFirstTurn) ||
+      lastMessage?.sender === 'user' ||
+      opponentTyping
+
+  // 30-Second Inactivity / Turn-Taking Circular Countdown Timer
+  useEffect(() => {
+    // 30s timer is only active during the standard game (not extended, not when stranger exited)
+    if (isExtended || isStrangerExited) return
+
+    setTurnTimeLeft(30)
+    const interval = setInterval(() => {
+      setTurnTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval)
+          // Who failed to send within 30 seconds?
+          const culprit = isWaitingForOpponent ? 'opponent' : 'user'
+          onTypingTimeout?.(culprit)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [messages.length, isWaitingForOpponent, isExtended, isStrangerExited])
 
   // Track previous waiting state to detect when opponent finished replying
   const prevWaitingRef = useRef(isWaitingForOpponent)
@@ -328,7 +353,6 @@ export const Chat: React.FC<ChatProps> = ({
                 </motion.div>
               ) : (
                 <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full font-mono font-medium text-[11px] sm:text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200">
-                  <Sparks className="w-3.5 h-3.5 text-[#FFD100]" />
                   <span>Extended</span>
                 </div>
               )}
@@ -368,7 +392,6 @@ export const Chat: React.FC<ChatProps> = ({
             }`}
           >
             <div className="flex items-center gap-1.5">
-              <Sparks className="w-3.5 h-3.5 shrink-0" />
               <span className="truncate">
                 {hasFreeMessage
                   ? '1st message is FREE!'
@@ -416,6 +439,20 @@ export const Chat: React.FC<ChatProps> = ({
 
           <AnimatePresence initial={false}>
             {messages.map((msg) => {
+              if (msg.sender === 'system') {
+                return (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex justify-center my-3"
+                  >
+                    <div className="bg-neutral-200/80 dark:bg-neutral-800/80 text-neutral-600 dark:text-neutral-400 font-mono text-xs font-bold px-3 py-1.5 rounded-full border border-neutral-300 dark:border-neutral-700 shadow-xs">
+                      {msg.text}
+                    </div>
+                  </motion.div>
+                )
+              }
               const isUser = msg.sender === 'user'
               return (
                 <motion.div
@@ -439,18 +476,72 @@ export const Chat: React.FC<ChatProps> = ({
             })}
           </AnimatePresence>
 
+          {/* Opponent Left Announcement Banner in Chat */}
+          {isStrangerExited && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex justify-center my-4"
+            >
+              <div className="bg-neutral-100 dark:bg-neutral-800 border border-black/20 dark:border-neutral-700 px-4 py-2 rounded-2xl shadow-xs text-center">
+                <span className="font-mono text-xs sm:text-sm font-bold text-neutral-700 dark:text-neutral-300">
+                  The stranger exited
+                </span>
+              </div>
+            </motion.div>
+          )}
+
           {/* Typing Indicator Bubble */}
           {opponentTyping && (
             <motion.div
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex justify-start"
+              className="flex justify-start items-center gap-2"
             >
               <div className="bg-[#EFEFEF] dark:bg-[#262626] rounded-2xl rounded-bl-xs px-3.5 sm:px-4 py-2.5 sm:py-3 flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-neutral-400 dark:bg-neutral-500 animate-bounce" />
                 <span className="w-2 h-2 rounded-full bg-neutral-400 dark:bg-neutral-500 animate-bounce [animation-delay:0.15s]" />
                 <span className="w-2 h-2 rounded-full bg-neutral-400 dark:bg-neutral-500 animate-bounce [animation-delay:0.3s]" />
               </div>
+
+              {/* Circular 30-Second Turn Timer beside Opponent Typing */}
+              {!isExtended && (
+                <div
+                  className="relative w-7 h-7 flex items-center justify-center shrink-0"
+                  title="Opponent must send message within 30s"
+                >
+                  <svg className="w-7 h-7 -rotate-90" viewBox="0 0 32 32">
+                    <circle
+                      cx="16"
+                      cy="16"
+                      r="12"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      className="text-neutral-200 dark:text-neutral-800"
+                    />
+                    <circle
+                      cx="16"
+                      cy="16"
+                      r="12"
+                      fill="none"
+                      stroke={turnTimeLeft <= 10 ? '#EF4444' : '#FFD100'}
+                      strokeWidth="2.5"
+                      strokeDasharray={2 * Math.PI * 12}
+                      strokeDashoffset={2 * Math.PI * 12 * (1 - turnTimeLeft / 30)}
+                      strokeLinecap="round"
+                      className="transition-all duration-1000 ease-linear"
+                    />
+                  </svg>
+                  <span
+                    className={`absolute font-mono text-[9px] font-bold ${
+                      turnTimeLeft <= 10 ? 'text-red-500 font-black animate-pulse' : 'text-neutral-500 dark:text-neutral-400'
+                    }`}
+                  >
+                    {turnTimeLeft}
+                  </span>
+                </div>
+              )}
             </motion.div>
           )}
         </div>
@@ -507,6 +598,45 @@ export const Chat: React.FC<ChatProps> = ({
                 className="w-full bg-transparent text-[16px] sm:text-[15px] font-normal text-black dark:text-white placeholder:text-neutral-500 dark:placeholder:text-neutral-400 outline-none disabled:cursor-not-allowed"
                 autoComplete="off"
               />
+
+              {/* Circular 30-Second Turn Countdown Timer beside User typing when it's user's turn */}
+              {!isExtended && !isWaitingForOpponent && (
+                <div
+                  className="relative w-6 h-6 flex items-center justify-center shrink-0 ml-1.5"
+                  title="Send a message before time expires"
+                >
+                  <svg className="w-6 h-6 -rotate-90" viewBox="0 0 32 32">
+                    <circle
+                      cx="16"
+                      cy="16"
+                      r="12"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      className="text-neutral-300 dark:text-neutral-700"
+                    />
+                    <circle
+                      cx="16"
+                      cy="16"
+                      r="12"
+                      fill="none"
+                      stroke={turnTimeLeft <= 10 ? '#EF4444' : '#FFD100'}
+                      strokeWidth="2.5"
+                      strokeDasharray={2 * Math.PI * 12}
+                      strokeDashoffset={2 * Math.PI * 12 * (1 - turnTimeLeft / 30)}
+                      strokeLinecap="round"
+                      className="transition-all duration-1000 ease-linear"
+                    />
+                  </svg>
+                  <span
+                    className={`absolute font-mono text-[9px] font-bold ${
+                      turnTimeLeft <= 10 ? 'text-red-500 font-black animate-pulse' : 'text-neutral-500 dark:text-neutral-400'
+                    }`}
+                  >
+                    {turnTimeLeft}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Send Button */}
