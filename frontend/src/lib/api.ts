@@ -40,7 +40,11 @@ export async function fetchMe(): Promise<UserProfileResponse | null> {
       credentials: 'include',
     })
     if (!res.ok) return null
-    return res.json()
+    const data = await res.json()
+    if (data.sessionToken) {
+      localStorage.setItem('botornot_auth_token', data.sessionToken)
+    }
+    return data
   } catch {
     return null
   }
@@ -77,6 +81,72 @@ export async function fetchGlobalStats(): Promise<GlobalStats | null> {
   }
 }
 
+export interface ServerQuestStatus {
+  date: string
+  loginStreak: number
+  loginClaimedToday: boolean
+  matchesPlayed: number
+  correctGuesses: number
+  adsWatchedToday: number
+  claimedQuestIds: string[]
+  allClaimed: boolean
+}
+
+export interface LeaderboardPlayer {
+  rank: number
+  publicId: string
+  name: string
+  totalGames: number
+  correctGuesses: number
+  coins: number
+  accuracy: number
+}
+
+export async function fetchQuests(): Promise<ServerQuestStatus | null> {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/quests`, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+      credentials: 'include',
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch {
+    return null
+  }
+}
+
+export async function claimServerQuest(
+  questId: string,
+): Promise<{ success: boolean; reward: number; balance: number; quests: ServerQuestStatus } | null> {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/quests/claim`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      credentials: 'include',
+      body: JSON.stringify({ questId }),
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch {
+    return null
+  }
+}
+
+export async function fetchLeaderboard(): Promise<LeaderboardPlayer[]> {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/stats/leaderboard`)
+    if (!res.ok) return []
+    return res.json()
+  } catch {
+    return []
+  }
+}
+
 export async function createGuestSession(): Promise<UserProfileResponse | null> {
   try {
     const res = await fetch(`${BACKEND_URL}/api/auth/guest-session`, {
@@ -85,6 +155,9 @@ export async function createGuestSession(): Promise<UserProfileResponse | null> 
     })
     if (!res.ok) return null
     const data = await res.json()
+    if (data.sessionToken) {
+      localStorage.setItem('botornot_auth_token', data.sessionToken)
+    }
     return data.user || null
   } catch {
     return null

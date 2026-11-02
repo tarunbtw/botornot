@@ -35,4 +35,31 @@ describe('Live Groq API Verification', () => {
       process.env.NODE_ENV = oldNodeEnv
     }
   }, 15000)
+
+  it('handles opening message when AI is the first sender (empty message history without Jinja error)', async () => {
+    const oldNodeEnv = process.env.NODE_ENV
+    process.env.NODE_ENV = 'development'
+
+    try {
+      const service = new AIService()
+      const { archetype, anchor } = getSessionPersona('test-live-opener-456')
+
+      // Empty history represents game start with AI as first sender
+      const rawResponse = await service.generateStreamingResponse({
+        messages: [],
+        systemPrompt: archetype.systemPrompt(anchor),
+      })
+
+      console.log('\n--- LIVE GROQ OPENER RESPONSE ---')
+      console.log('Raw Opener:', rawResponse)
+
+      expect(rawResponse).toBeDefined()
+      expect(rawResponse.length).toBeGreaterThan(0)
+
+      const humanized = humanizeResponse(rawResponse, archetype.casing)
+      expect(humanized.bubbles.length).toBeGreaterThan(0)
+    } finally {
+      process.env.NODE_ENV = oldNodeEnv
+    }
+  }, 15000)
 })

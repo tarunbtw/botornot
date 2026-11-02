@@ -50,8 +50,8 @@ export class GameService {
       return null
     }
 
-    // If the game ended in the past and is past grace period (90s for guessing), auto-complete it
-    if (endsAt > 0 && now > endsAt + 90000 && ['INITIAL_ENDED', 'GUESSING', 'ACTIVE'].includes(record.game.status)) {
+    // If the game ended in the past, auto-complete it and free the user immediately
+    if (endsAt > 0 && now >= endsAt && ['INITIAL_ENDED', 'GUESSING', 'ACTIVE'].includes(record.game.status)) {
       await db
         .update(game)
         .set({ status: 'COMPLETED', updatedAt: new Date() })
@@ -60,6 +60,20 @@ export class GameService {
     }
 
     return record
+  }
+
+  /**
+   * Cleans up / completes any stale or abandoned game for a user so they are never blocked from matchmaking.
+   */
+  async abandonGameForUser(gameId: string, _userId: string) {
+    try {
+      await db
+        .update(game)
+        .set({ status: 'COMPLETED', updatedAt: new Date() })
+        .where(eq(game.id, gameId))
+    } catch (err) {
+      console.warn(`[GameService] Failed to clean up stale game ${gameId}:`, err)
+    }
   }
 
   /**
@@ -146,7 +160,7 @@ export class GameService {
         initialStartedAt: now,
         initialEndsAt: endsAt,
         firstSenderPlayerId: firstSenderId,
-        aiModel: env.OPENROUTER_MODEL,
+        aiModel: env.AI_PROVIDER === 'groq' ? env.GROQ_MODEL : env.OPENROUTER_MODEL,
         aiSystemPromptVersion: 'v1',
       })
 

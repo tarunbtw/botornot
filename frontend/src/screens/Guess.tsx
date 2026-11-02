@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import type { OpponentType } from '../types'
 import { Button } from '../components/UI'
 import { CoinIcon } from '../components/CoinIcon'
@@ -14,6 +14,12 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { playCorrect, playIncorrect } from '../lib/audio'
 
+export interface VerdictInfo {
+  isCorrect: boolean
+  actualOpponent: OpponentType
+  reward: number
+}
+
 interface GuessProps {
   onGuess: (guess: OpponentType) => void
   onExtendChat: () => void
@@ -24,6 +30,8 @@ interface GuessProps {
   coinAnimAmount: number
   onPlayAgain: () => void
   onHome: () => void
+  isVerdictPending?: boolean
+  verdictInfo?: VerdictInfo | null
 }
 
 export const Guess: React.FC<GuessProps> = ({
@@ -36,18 +44,30 @@ export const Guess: React.FC<GuessProps> = ({
   coinAnimAmount,
   onPlayAgain,
   onHome,
+  isVerdictPending = false,
+  verdictInfo = null,
 }) => {
   const [watchingVideo, setWatchingVideo] = useState(false)
+  const soundPlayedRef = useRef(false)
 
-  const isCorrect = userGuess === opponent
+  const isPending = isVerdictPending || (userGuess !== null && !verdictInfo)
+  const isCorrect = verdictInfo ? verdictInfo.isCorrect : userGuess === opponent
+  const finalOpponent = verdictInfo ? verdictInfo.actualOpponent : opponent
+  const rewardCoins = verdictInfo ? verdictInfo.reward : (isCorrect ? 10 : 5)
+
+  useEffect(() => {
+    if (!soundPlayedRef.current && verdictInfo) {
+      soundPlayedRef.current = true
+      if (verdictInfo.isCorrect) {
+        playCorrect()
+      } else {
+        playIncorrect()
+      }
+    }
+  }, [verdictInfo])
 
   const handleGuessClick = (guess: OpponentType) => {
     if (userGuess !== null) return
-    if (guess === opponent) {
-      playCorrect()
-    } else {
-      playIncorrect()
-    }
     onGuess(guess)
   }
 
@@ -186,80 +206,96 @@ export const Guess: React.FC<GuessProps> = ({
               transition={{ type: 'spring', bounce: 0.3, duration: 0.5 }}
               className="w-full max-w-sm bg-white dark:bg-[#181820] rounded-2xl border border-black/15 dark:border-neutral-700 shadow-md overflow-hidden text-center"
             >
-              {/* Verdict Header */}
-              <div
-                className={`p-5 border-b border-black/20 flex flex-col items-center gap-2.5 ${
-                  isCorrect ? 'bg-[#FFD100] text-black' : 'bg-red-500 text-white'
-                }`}
-              >
-                <div className="w-12 h-12 bg-white rounded-full border border-black/20 flex items-center justify-center shadow-xs">
-                  {isCorrect ? (
-                    <CheckCircle className="w-7 h-7 text-emerald-600 stroke-[3]" />
-                  ) : (
-                    <XmarkCircle className="w-7 h-7 text-red-600 stroke-[3]" />
-                  )}
+              {isPending ? (
+                <div className="p-8 flex flex-col items-center justify-center gap-4 text-center">
+                  <div className="w-12 h-12 rounded-full border-4 border-[#FFD100] border-t-transparent animate-spin" />
+                  <div>
+                    <h3 className="text-xl font-display font-black uppercase text-black dark:text-white">
+                      Verifying Deduction...
+                    </h3>
+                    <p className="text-xs font-mono font-medium text-neutral-500 dark:text-neutral-400 mt-1">
+                      Checking match telemetry & identity
+                    </p>
+                  </div>
                 </div>
-
-                <h2 className="text-2xl font-display font-black uppercase tracking-tight leading-none">
-                  {isCorrect ? 'YOU WERE RIGHT!' : 'YOU WERE FOOLED!'}
-                </h2>
-
-                <div className="font-mono text-xs font-black px-3 py-0.5 rounded-full bg-black text-[#FFD100]">
-                  {isCorrect ? '+10 Coins Earned' : '+5 Coins (Streak Reset)'}
-                </div>
-              </div>
-
-              {/* Reveal Body */}
-              <div className="p-5 space-y-4 bg-[#FAFAF8] dark:bg-[#121218] text-black dark:text-white">
-                <div className="p-3.5 rounded-xl border border-black/15 dark:border-neutral-700 bg-white dark:bg-[#181820] flex items-center justify-center gap-3 shadow-xs">
+              ) : (
+                <>
+                  {/* Verdict Header */}
                   <div
-                    className={`w-10 h-10 rounded-lg border border-black/20 flex items-center justify-center shrink-0 ${
-                      opponent === 'AI' ? 'bg-blue-100 text-blue-600' : 'bg-[#FFD100] text-black'
+                    className={`p-5 border-b border-black/20 flex flex-col items-center gap-2.5 ${
+                      isCorrect ? 'bg-[#FFD100] text-black' : 'bg-red-500 text-white'
                     }`}
                   >
-                    {opponent === 'AI' ? <Cpu className="w-6 h-6" /> : <User className="w-6 h-6" />}
-                  </div>
-                  <div className="text-left">
-                    <div className="text-[10px] font-mono font-bold uppercase text-neutral-500 dark:text-neutral-400">
-                      Opponent was
+                    <div className="w-12 h-12 bg-white rounded-full border border-black/20 flex items-center justify-center shadow-xs">
+                      {isCorrect ? (
+                        <CheckCircle className="w-7 h-7 text-emerald-600 stroke-[3]" />
+                      ) : (
+                        <XmarkCircle className="w-7 h-7 text-red-600 stroke-[3]" />
+                      )}
                     </div>
-                    <div className="font-display font-black text-lg text-black dark:text-white leading-tight">
-                      {opponent === 'AI' ? 'An AI Bot' : 'A Real Human'}
+
+                    <h2 className="text-2xl font-display font-black uppercase tracking-tight leading-none">
+                      {isCorrect ? 'YOU WERE RIGHT!' : 'YOU WERE FOOLED!'}
+                    </h2>
+
+                    <div className="font-mono text-xs font-black px-3 py-0.5 rounded-full bg-black text-[#FFD100]">
+                      {isCorrect ? `+${rewardCoins} Coins Earned` : `+${rewardCoins} Coins (Streak Reset)`}
                     </div>
                   </div>
-                </div>
 
-                <div className="flex justify-between items-center px-3.5 py-2 bg-white dark:bg-[#181820] rounded-xl border border-black/20 dark:border-neutral-700 font-mono font-bold text-xs">
-                  <span className="text-neutral-600 dark:text-neutral-400">Streak:</span>
-                  <span className="text-orange-500 font-black flex items-center gap-1">
-                    🔥 {streak}
-                  </span>
-                </div>
+                  {/* Reveal Body */}
+                  <div className="p-5 space-y-4 bg-[#FAFAF8] dark:bg-[#121218] text-black dark:text-white">
+                    <div className="p-3.5 rounded-xl border border-black/15 dark:border-neutral-700 bg-white dark:bg-[#181820] flex items-center justify-center gap-3 shadow-xs">
+                      <div
+                        className={`w-10 h-10 rounded-lg border border-black/20 flex items-center justify-center shrink-0 ${
+                          finalOpponent === 'AI' ? 'bg-blue-100 text-blue-600' : 'bg-[#FFD100] text-black'
+                        }`}
+                      >
+                        {finalOpponent === 'AI' ? <Cpu className="w-6 h-6" /> : <User className="w-6 h-6" />}
+                      </div>
+                      <div className="text-left">
+                        <div className="text-[10px] font-mono font-bold uppercase text-neutral-500 dark:text-neutral-400">
+                          Opponent was
+                        </div>
+                        <div className="font-display font-black text-lg text-black dark:text-white leading-tight">
+                          {finalOpponent === 'AI' ? 'An AI Bot' : 'A Real Human'}
+                        </div>
+                      </div>
+                    </div>
 
-                {/* Actions */}
-                <div className="space-y-2 pt-1">
-                  <Button
-                    variant="primary"
-                    size="md"
-                    fullWidth
-                    onClick={onPlayAgain}
-                    className="py-3 text-sm font-black uppercase tracking-wider"
-                  >
-                    <Refresh className="w-4 h-4 mr-1" />
-                    Play Again
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    fullWidth
-                    onClick={onHome}
-                    className="py-2 text-xs font-bold text-neutral-700 dark:text-neutral-300"
-                  >
-                    <HomeIcon className="w-3.5 h-3.5 mr-1" />
-                    Home
-                  </Button>
-                </div>
-              </div>
+                    <div className="flex justify-between items-center px-3.5 py-2 bg-white dark:bg-[#181820] rounded-xl border border-black/20 dark:border-neutral-700 font-mono font-bold text-xs">
+                      <span className="text-neutral-600 dark:text-neutral-400">Streak:</span>
+                      <span className="text-orange-500 font-black flex items-center gap-1">
+                        🔥 {streak}
+                      </span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="space-y-2 pt-1">
+                      <Button
+                        variant="primary"
+                        size="md"
+                        fullWidth
+                        onClick={onPlayAgain}
+                        className="py-3 text-sm font-black uppercase tracking-wider"
+                      >
+                        <Refresh className="w-4 h-4 mr-1" />
+                        Play Again
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        fullWidth
+                        onClick={onHome}
+                        className="py-2 text-xs font-bold text-neutral-700 dark:text-neutral-300"
+                      >
+                        <HomeIcon className="w-3.5 h-3.5 mr-1" />
+                        Home
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
             </motion.div>
           </motion.div>
         )}

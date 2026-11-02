@@ -1,5 +1,4 @@
 import type { FastifyPluginAsync } from 'fastify'
-import { statsService } from '../modules/stats/service.js'
 
 export const healthRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/health', async () => {
@@ -8,9 +7,5 @@ export const healthRoutes: FastifyPluginAsync = async (fastify) => {
       service: 'botornot-backend',
       timestamp: new Date().toISOString(),
     }
-  })
-
-  fastify.get('/api/stats/global', async () => {
-    return statsService.getGlobalStats()
   })
 }

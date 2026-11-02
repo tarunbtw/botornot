@@ -183,12 +183,13 @@ export async function getWsSession(
       if (match && match[1]) {
         token = decodeURIComponent(match[1])
       }
-    } else if (env.NODE_ENV !== 'production') {
+    }
+    if (!token) {
       try {
         const url = new URL(req.url || '', 'http://localhost')
         token = url.searchParams.get('token') || url.searchParams.get('sessionToken') || ''
       } catch {
-        // Ignore URL parse error in dev
+        // Ignore URL parse error
       }
     }
 

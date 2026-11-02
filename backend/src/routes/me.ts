@@ -30,6 +30,7 @@ export const meRoutes: FastifyPluginAsync = async (fastify) => {
       publicId: stats.publicId,
       tokenBalance: stats.tokenBalance,
       isPro: stats.isPro,
+      sessionToken: request.session?.token,
     }
   })
 
@@ -46,6 +47,38 @@ export const meRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Instant Guest / Anonymous Play (matches humanornot.so: no registration required to play)
   fastify.post('/api/auth/guest-session', async (request, reply) => {
+    // 1. If user already has an active session cookie, return existing profile instead of minting a new guest
+    try {
+      const existingToken = request.cookies['better-auth.session_token']
+      if (existingToken) {
+        const existingSession = await db.query.session.findFirst({
+          where: eq(session.token, existingToken),
+        })
+        if (existingSession && new Date(existingSession.expiresAt) > new Date()) {
+          const u = await db.query.user.findFirst({
+            where: eq(user.id, existingSession.userId),
+          })
+          const stats = await statsService.getUserStats(existingSession.userId)
+          if (u && stats) {
+            return {
+              success: true,
+              sessionToken: existingSession.token,
+              user: {
+                id: u.id,
+                name: u.name,
+                email: u.email,
+                publicId: stats.publicId,
+                tokenBalance: stats.tokenBalance,
+                isGuest: u.email.endsWith('@guest.botornot.so'),
+              },
+            }
+          }
+        }
+      }
+    } catch {
+      // Continue to new guest creation
+    }
+
     // Throttling: Max 30 guest sessions per IP per hour
     const clientIp = request.ip || '127.0.0.1'
     if (env.NODE_ENV !== 'test') {
@@ -104,6 +137,7 @@ export const meRoutes: FastifyPluginAsync = async (fastify) => {
 
     return {
       success: true,
+      sessionToken,
       user: {
         id: guestId,
         name: guestName,

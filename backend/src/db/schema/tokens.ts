@@ -17,6 +17,8 @@ export const tokenTransaction = pgTable(
         'PURCHASE_CREDIT',
         'ADMIN_ADJUSTMENT',
         'REFUND',
+        'QUEST_REWARD',
+        'DAILY_CHECKIN',
       ],
     }).notNull(),
     referenceType: text('reference_type'),

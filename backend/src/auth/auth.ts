@@ -21,13 +21,20 @@ export const auth = betterAuth({
   trustedOrigins: (request) => {
     const origin = request?.headers?.get('origin')
     const allowed = [env.CLIENT_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173']
-    if (
-      origin &&
-      /^http:\/\/(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(
-        origin,
-      )
-    ) {
-      allowed.push(origin)
+    if (origin) {
+      try {
+        const hostname = new URL(origin).hostname
+        if (hostname.endsWith('.vercel.app') || hostname === 'vercel.app') {
+          allowed.push(origin)
+        }
+      } catch {}
+      if (
+        /^http:\/\/(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(
+          origin,
+        )
+      ) {
+        allowed.push(origin)
+      }
     }
     return allowed
   },

@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm'
 export class ConnectionManager {
   private userSockets: Map<string, Set<WebSocket>> = new Map()
   private gameUsers: Map<string, Set<string>> = new Map()
+  private pendingUserEvents: Map<string, ServerEvent[]> = new Map()
 
   addConnection(userId: string, socket: WebSocket) {
     let sockets = this.userSockets.get(userId)
@@ -15,6 +16,15 @@ export class ConnectionManager {
       this.userSockets.set(userId, sockets)
     }
     sockets.add(socket)
+
+    // Flush any pending events that arrived while the WebSocket authentication was resolving
+    const pending = this.pendingUserEvents.get(userId)
+    if (pending && pending.length > 0) {
+      this.pendingUserEvents.delete(userId)
+      for (const ev of pending) {
+        this.sendToUser(userId, ev)
+      }
+    }
   }
 
   removeConnection(userId: string, socket: WebSocket) {
@@ -37,7 +47,17 @@ export class ConnectionManager {
 
   sendToUser(userId: string, event: ServerEvent) {
     const sockets = this.userSockets.get(userId)
-    if (!sockets) return
+    if (!sockets || sockets.size === 0) {
+      // Buffer early events (like game.matched or game.started) for up to 10s while connection finishes auth
+      let pending = this.pendingUserEvents.get(userId)
+      if (!pending) {
+        pending = []
+        this.pendingUserEvents.set(userId, pending)
+        setTimeout(() => this.pendingUserEvents.delete(userId), 10000)
+      }
+      pending.push(event)
+      return
+    }
 
     const data = JSON.stringify(event)
     for (const ws of sockets) {

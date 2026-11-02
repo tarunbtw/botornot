@@ -23,6 +23,7 @@ interface ChatProps {
   coins: number
   opponentTyping?: boolean
   isOpponentFirstTurn?: boolean
+  onTyping?: (isTyping: boolean) => void
   onForfeitMatch?: () => void
   onEndExtendedChat?: () => void
   onWatchAdForCoins?: () => void
@@ -37,6 +38,7 @@ export const Chat: React.FC<ChatProps> = ({
   coins,
   opponentTyping = false,
   isOpponentFirstTurn = false,
+  onTyping,
   onForfeitMatch,
   onEndExtendedChat,
   onWatchAdForCoins,
@@ -45,6 +47,30 @@ export const Chat: React.FC<ChatProps> = ({
   const [showForfeitModal, setShowForfeitModal] = useState(false)
   const [showOutOfCoinsModal, setShowOutOfCoinsModal] = useState(false)
   const [watchingAdForCoins, setWatchingAdForCoins] = useState(false)
+
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isTypingActiveRef = useRef(false)
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value
+    setInputText(val)
+
+    if (onTyping) {
+      if (!isTypingActiveRef.current && val.trim().length > 0) {
+        isTypingActiveRef.current = true
+        onTyping(true)
+      }
+
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current)
+      }
+
+      typingTimerRef.current = setTimeout(() => {
+        isTypingActiveRef.current = false
+        onTyping(false)
+      }, 1500)
+    }
+  }
 
   const chatScrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -220,6 +246,14 @@ export const Chat: React.FC<ChatProps> = ({
     if (isWaitingForOpponent) return
     const trimmed = inputText.trim()
     if (!trimmed) return
+
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current)
+    }
+    if (isTypingActiveRef.current) {
+      isTypingActiveRef.current = false
+      onTyping?.(false)
+    }
 
     if (isOutOfCoinsForNextMessage) {
       setShowOutOfCoinsModal(true)
@@ -452,7 +486,14 @@ export const Chat: React.FC<ChatProps> = ({
                 ref={inputRef}
                 type="text"
                 value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
+                onChange={handleInputChange}
+                onBlur={() => {
+                  if (isTypingActiveRef.current) {
+                    isTypingActiveRef.current = false
+                    if (typingTimerRef.current) clearTimeout(typingTimerRef.current)
+                    onTyping?.(false)
+                  }
+                }}
                 disabled={isWaitingForOpponent}
                 placeholder={
                   isWaitingForOpponent

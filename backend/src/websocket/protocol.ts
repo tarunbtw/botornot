@@ -36,6 +36,13 @@ export const clientEventSchema = z.discriminatedUnion('type', [
       gameId: z.string(),
     }),
   }),
+  z.object({
+    type: z.literal('chat.typing'),
+    payload: z.object({
+      gameId: z.string(),
+      isTyping: z.boolean(),
+    }),
+  }),
   z.object({ type: z.literal('ping') }),
 ])
 
@@ -54,6 +61,14 @@ export type ServerEvent =
         sequenceNumber: number
         content: string
         createdAt: string
+      }
+    }
+  | {
+      type: 'chat.typing'
+      payload: {
+        gameId: string
+        userId: string
+        isTyping: boolean
       }
     }
   | { type: 'chat.ai_delta'; payload: { delta: string } }

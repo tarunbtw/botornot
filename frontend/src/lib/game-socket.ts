@@ -19,6 +19,14 @@ export type ServerEvent =
         createdAt: string
       }
     }
+  | {
+      type: 'chat.typing'
+      payload: {
+        gameId: string
+        userId: string
+        isTyping: boolean
+      }
+    }
   | { type: 'chat.ai_delta'; payload: { delta: string } }
   | { type: 'chat.ai_done'; payload: { id: string; sequenceNumber: number; content: string } }
   | { type: 'session.ended'; payload: { gameId: string } }
@@ -155,6 +163,13 @@ export class GameSocketClient {
     this.send({
       type: 'chat.send',
       payload: { gameId, content },
+    })
+  }
+
+  sendTyping(gameId: string, isTyping: boolean) {
+    this.send({
+      type: 'chat.typing',
+      payload: { gameId, isTyping },
     })
   }
 

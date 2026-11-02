@@ -11,6 +11,8 @@ export type TransactionType =
   | 'PURCHASE_CREDIT'
   | 'ADMIN_ADJUSTMENT'
   | 'REFUND'
+  | 'QUEST_REWARD'
+  | 'DAILY_CHECKIN'
 
 export interface RecordTransactionParams {
   userId: string

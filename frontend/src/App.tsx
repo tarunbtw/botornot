@@ -11,7 +11,14 @@ import { Profile } from './screens/Profile'
 import { Quests } from './screens/Quests'
 import { AnimatePresence, motion } from 'framer-motion'
 import { gameSocket, type ServerEvent } from './lib/game-socket.js'
-import { fetchMe, fetchStats, createGuestSession, type UserProfileResponse } from './lib/api.js'
+import {
+  fetchMe,
+  fetchStats,
+  createGuestSession,
+  fetchQuests,
+  claimServerQuest,
+  type UserProfileResponse,
+} from './lib/api.js'
 import { playMatchFound, playReward } from './lib/audio'
 import {
   loadQuestsData,
@@ -43,6 +50,12 @@ export default function App() {
 
   const [opponent, setOpponent] = useState<OpponentType>('AI')
   const [userGuess, setUserGuess] = useState<OpponentType | null>(null)
+  const [isVerdictPending, setIsVerdictPending] = useState<boolean>(false)
+  const [verdictInfo, setVerdictInfo] = useState<{
+    isCorrect: boolean
+    actualOpponent: OpponentType
+    reward: number
+  } | null>(null)
   const [chatMessages, setChatMessages] = useState<Message[]>([])
   // 2 Minutes (120 seconds) per chat as requested!
   const [chatTimeLeft, setChatTimeLeft] = useState<number>(120)
@@ -88,7 +101,22 @@ export default function App() {
     setQuestsData(loadQuestsData())
   }, [])
 
-  const handleClaimQuest = (questId: string, reward: number) => {
+  const handleClaimQuest = async (questId: string, reward: number) => {
+    // 1. Authoritative Server Claim
+    const res = await claimServerQuest(questId)
+    if (res && res.success) {
+      handleCoinsChange(res.balance)
+      playReward()
+      setQuestsData((prev) => ({
+        ...prev,
+        claimedQuestIds: res.quests.claimedQuestIds,
+        matchesPlayed: res.quests.matchesPlayed,
+        correctGuesses: res.quests.correctGuesses,
+      }))
+      return
+    }
+
+    // 2. Offline fallback
     setQuestsData((prev) => {
       if (prev.claimedQuestIds.includes(questId)) return prev
       const updated = {
@@ -102,7 +130,21 @@ export default function App() {
     playReward()
   }
 
-  const handleClaimLogin = (reward: number) => {
+  const handleClaimLogin = async (reward: number) => {
+    // 1. Authoritative Server Daily Check-In
+    const res = await claimServerQuest('login')
+    if (res && res.success) {
+      handleCoinsChange(res.balance)
+      playReward()
+      setQuestsData((prev) => ({
+        ...prev,
+        loginClaimedToday: true,
+        loginStreak: res.quests.loginStreak,
+      }))
+      return
+    }
+
+    // 2. Offline fallback
     setQuestsData((prev) => {
       if (prev.loginClaimedToday) return prev
       const updated = {
@@ -116,7 +158,20 @@ export default function App() {
     playReward()
   }
 
-  const handleClaimAllBonus = (reward: number) => {
+  const handleClaimAllBonus = async (reward: number) => {
+    // 1. Authoritative Server Bonus Claim
+    const res = await claimServerQuest('bonus')
+    if (res && res.success) {
+      handleCoinsChange(res.balance)
+      playReward()
+      setQuestsData((prev) => ({
+        ...prev,
+        allClaimed: true,
+      }))
+      return
+    }
+
+    // 2. Offline fallback
     setQuestsData((prev) => {
       if (prev.allClaimed) return prev
       const updated = {
@@ -157,6 +212,17 @@ export default function App() {
     setIsOpponentFirstTurn(false)
     setStreak((prev) => Math.max(0, prev - 1))
     setUserGuess(null)
+    setIsVerdictPending(false)
+    setVerdictInfo(null)
+    if (activeBackendGameIdRef.current) {
+      try {
+        gameSocket.send({
+          type: 'game.leave',
+          payload: { gameId: activeBackendGameIdRef.current },
+        })
+      } catch {}
+      activeBackendGameIdRef.current = null
+    }
     setGameState('HOME')
   }
 
@@ -188,6 +254,21 @@ export default function App() {
         setCoins(st.tokenBalance)
       }
     }).catch(() => {})
+
+    fetchQuests().then((sq) => {
+      if (sq) {
+        setQuestsData((prev) => ({
+          ...prev,
+          loginStreak: sq.loginStreak,
+          loginClaimedToday: sq.loginClaimedToday,
+          matchesPlayed: sq.matchesPlayed,
+          correctGuesses: sq.correctGuesses,
+          claimedQuestIds: sq.claimedQuestIds,
+          allClaimed: sq.allClaimed,
+          adsWatchedToday: sq.adsWatchedToday,
+        }))
+      }
+    }).catch(() => {})
   }, [])
 
   // Persist local stats
@@ -207,78 +288,159 @@ export default function App() {
     }
   }
 
-  // --- Matchmaking Effect with Real Backend + Resilient Fallback ---
+  // --- Persistent GameSocket Lifecycle & Live Protocol Handlers ---
+  useEffect(() => {
+    gameSocket.connect()
+
+    const unsubscribe = gameSocket.subscribe((event: ServerEvent) => {
+      if (event.type === 'connection.ready') {
+        if (typeof event.payload.tokenBalance === 'number') {
+          setCoins(event.payload.tokenBalance)
+        }
+      }
+
+      if (event.type === 'game.matched') {
+        playMatchFound()
+      }
+
+      if (event.type === 'game.started') {
+        activeBackendGameIdRef.current = event.payload.gameId
+        playMatchFound()
+        clearAiTimers()
+        setChatMessages([])
+        setChatTimeLeft(120)
+        setIsExtendedChat(false)
+        setFreeExtendedMessagesLeft(0)
+        setIsOpponentFirstTurn(!event.payload.isFirstSender)
+        setOpponentTyping(false)
+        setUserGuess(null)
+        setIsVerdictPending(false)
+        setVerdictInfo(null)
+        setGameState('CHAT')
+      }
+
+      if (event.type === 'chat.typing') {
+        setOpponentTyping(event.payload.isTyping)
+      }
+
+      if (event.type === 'chat.message') {
+        if (!event.payload.isSelf) {
+          setChatMessages((prev) => {
+            if (prev.some((m) => m.id === event.payload.id)) return prev
+            return [
+              ...prev,
+              {
+                id: event.payload.id,
+                sender: 'opponent',
+                text: event.payload.content,
+                timestamp: new Date(event.payload.createdAt).getTime(),
+              },
+            ]
+          })
+          setIsOpponentFirstTurn(false)
+          setOpponentTyping(false)
+        }
+      }
+
+      if (event.type === 'chat.ai_delta') {
+        setOpponentTyping(true)
+      }
+
+      if (event.type === 'chat.ai_done') {
+        setOpponentTyping(false)
+        setChatMessages((prev) => {
+          if (prev.some((m) => m.id === event.payload.id)) return prev
+          return [
+            ...prev,
+            {
+              id: event.payload.id,
+              sender: 'opponent',
+              text: event.payload.content,
+              timestamp: Date.now(),
+            },
+          ]
+        })
+        setIsOpponentFirstTurn(false)
+      }
+
+      if (event.type === 'session.ended' || event.type === 'guess.request') {
+        setGameState('GUESS')
+      }
+
+      if (event.type === 'guess.result') {
+        setOpponent(event.payload.actualOpponentType)
+        setCoins(event.payload.balanceAfter)
+        setIsVerdictPending(false)
+        setVerdictInfo({
+          isCorrect: event.payload.isCorrect,
+          actualOpponent: event.payload.actualOpponentType,
+          reward: event.payload.reward,
+        })
+        if (event.payload.isCorrect) {
+          setStreak((prev) => prev + 1)
+          setWins((prev) => prev + 1)
+        } else {
+          setStreak(0)
+          setLosses((prev) => prev + 1)
+        }
+
+        // Update quests on authoritative backend result
+        setQuestsData((prev) => {
+          const updated = {
+            ...prev,
+            matchesPlayed: prev.matchesPlayed + 1,
+            correctGuesses: event.payload.isCorrect ? prev.correctGuesses + 1 : prev.correctGuesses,
+          }
+          saveQuestsData(updated)
+          return updated
+        })
+      }
+    })
+
+    return () => {
+      unsubscribe()
+    }
+  }, [])
+
+  // --- Matchmaking Queue Trigger with Resilient Fallback ---
   useEffect(() => {
     if (gameState !== 'MATCHMAKING') return
 
-    let isSubscribed = true
-    let fallbackTimer: ReturnType<typeof setTimeout> | null = null
+    activeBackendGameIdRef.current = null
+    gameSocket.joinQueue()
 
-    const handleMatchFound = () => {
-      if (!isSubscribed) return
-      playMatchFound()
-      clearAiTimers()
-      const isAI = Math.random() > 0.45
-      const opponentStarts = Math.random() > 0.5
-      setIsOpponentFirstTurn(opponentStarts)
-      setOpponent(isAI ? 'AI' : 'HUMAN')
-      setChatMessages([])
-      setChatTimeLeft(120) // Full 2 minutes (120s)!
-      setIsExtendedChat(false)
-      setFreeExtendedMessagesLeft(0)
-      setGameState('CHAT')
-      resetMatchPersona()
+    // Safety timeout: if backend does not match after 10s, start local offline simulation
+    const fallbackTimer = setTimeout(() => {
+      if (gameState === 'MATCHMAKING' && !activeBackendGameIdRef.current) {
+        console.warn('[Matchmaking] Backend queue timeout; starting offline simulation')
+        playMatchFound()
+        clearAiTimers()
+        const isAI = Math.random() > 0.45
+        const opponentStarts = Math.random() > 0.5
+        setIsOpponentFirstTurn(opponentStarts)
+        setOpponent(isAI ? 'AI' : 'HUMAN')
+        setChatMessages([])
+        setChatTimeLeft(120)
+        setIsExtendedChat(false)
+        setFreeExtendedMessagesLeft(0)
+        setGameState('CHAT')
+        resetMatchPersona()
 
-      // If opponent starts the game, initiate their opening greeting with tracked timer
-      if (opponentStarts) {
-        const thisGen = ++aiGenerationIdRef.current
-        const openingTimer = setTimeout(() => {
-          if (thisGen !== aiGenerationIdRef.current) return
-          triggerAiOpponentReply([])
-        }, 1200 + Math.floor(Math.random() * 400))
-        aiTimersRef.current.push(openingTimer)
+        if (opponentStarts) {
+          const thisGen = ++aiGenerationIdRef.current
+          const openingTimer = setTimeout(() => {
+            if (thisGen !== aiGenerationIdRef.current) return
+            triggerAiOpponentReply([])
+          }, 1200 + Math.floor(Math.random() * 400))
+          aiTimersRef.current.push(openingTimer)
+        }
       }
-    }
+    }, 10000)
 
-    try {
-      gameSocket.connect()
-      gameSocket.joinQueue()
-
-      const unsubscribe = gameSocket.subscribe((event: ServerEvent) => {
-        if (!isSubscribed) return
-        if (event.type === 'game.matched') {
-          playMatchFound()
-        }
-        if (event.type === 'game.started') {
-          activeBackendGameIdRef.current = event.payload.gameId
-          if (fallbackTimer) clearTimeout(fallbackTimer)
-          handleMatchFound()
-        }
-      })
-
-      // If backend DB/Redis is not running or takes > 3.5s, gracefully proceed
-      fallbackTimer = setTimeout(() => {
-        if (isSubscribed && gameState === 'MATCHMAKING') {
-          handleMatchFound()
-        }
-      }, 3500)
-
-      return () => {
-        isSubscribed = false
-        if (fallbackTimer) clearTimeout(fallbackTimer)
-        unsubscribe()
+    return () => {
+      clearTimeout(fallbackTimer)
+      if (gameState === 'MATCHMAKING' && !activeBackendGameIdRef.current) {
         gameSocket.cancelQueue()
-      }
-    } catch {
-      fallbackTimer = setTimeout(() => {
-        if (isSubscribed && gameState === 'MATCHMAKING') {
-          handleMatchFound()
-        }
-      }, 3000)
-
-      return () => {
-        isSubscribed = false
-        if (fallbackTimer) clearTimeout(fallbackTimer)
       }
     }
   }, [gameState])
@@ -397,15 +559,6 @@ export default function App() {
       }
     }
 
-    // Forward to backend game socket if active game exists
-    if (activeBackendGameIdRef.current) {
-      try {
-        gameSocket.sendMessage(activeBackendGameIdRef.current, trimmed)
-      } catch {
-        // local fallback
-      }
-    }
-
     const newMsg: Message = {
       id: Date.now().toString(),
       sender: 'user',
@@ -416,43 +569,60 @@ export default function App() {
     const updated = [...chatMessages, newMsg]
     setChatMessages(updated)
 
-    // Opponent replies on their turn (strictly 1 message)
-    triggerAiOpponentReply(updated)
+    // Forward to backend game socket if active game exists
+    if (activeBackendGameIdRef.current) {
+      try {
+        gameSocket.sendMessage(activeBackendGameIdRef.current, trimmed)
+      } catch {
+        // local fallback
+      }
+    } else {
+      // Opponent replies on their turn only during offline fallback simulation
+      triggerAiOpponentReply(updated)
+    }
   }
 
   // --- Handle Verdict Guess ---
   const handleGuess = (guess: OpponentType) => {
     setUserGuess(guess)
-    const isCorrect = guess === opponent
 
     if (activeBackendGameIdRef.current) {
+      setIsVerdictPending(true)
       try {
         gameSocket.submitGuess(activeBackendGameIdRef.current, guess)
       } catch {
         // local fallback
       }
-    }
-
-    if (isCorrect) {
-      handleCoinsChange(coins + 10)
-      setStreak((prev) => prev + 1)
-      setWins((prev) => prev + 1)
     } else {
-      handleCoinsChange(coins + 5)
-      setStreak(0)
-      setLosses((prev) => prev + 1)
-    }
+      const isCorrect = guess === opponent
+      setIsVerdictPending(false)
+      setVerdictInfo({
+        isCorrect,
+        actualOpponent: opponent,
+        reward: isCorrect ? 10 : 5,
+      })
 
-    // Update Daily Quests progress (Matches played and correct guesses)
-    setQuestsData((prev) => {
-      const updated = {
-        ...prev,
-        matchesPlayed: prev.matchesPlayed + 1,
-        correctGuesses: isCorrect ? prev.correctGuesses + 1 : prev.correctGuesses,
+      if (isCorrect) {
+        handleCoinsChange(coins + 10)
+        setStreak((prev) => prev + 1)
+        setWins((prev) => prev + 1)
+      } else {
+        handleCoinsChange(coins + 5)
+        setStreak(0)
+        setLosses((prev) => prev + 1)
       }
-      saveQuestsData(updated)
-      return updated
-    })
+
+      // Update Daily Quests progress (Matches played and correct guesses)
+      setQuestsData((prev) => {
+        const updated = {
+          ...prev,
+          matchesPlayed: prev.matchesPlayed + 1,
+          correctGuesses: isCorrect ? prev.correctGuesses + 1 : prev.correctGuesses,
+        }
+        saveQuestsData(updated)
+        return updated
+      })
+    }
   }
 
   // --- Handle Extend Chat ---
@@ -558,6 +728,11 @@ export default function App() {
                 onEndExtendedChat={() => setGameState('GUESS')}
                 opponentTyping={opponentTyping}
                 isOpponentFirstTurn={isOpponentFirstTurn}
+                onTyping={(isTyping) => {
+                  if (activeBackendGameIdRef.current) {
+                    gameSocket.sendTyping(activeBackendGameIdRef.current, isTyping)
+                  }
+                }}
                 onForfeitMatch={handleForfeitMatch}
                 onWatchAdForCoins={handleRecordAdWatched}
               />
@@ -583,12 +758,18 @@ export default function App() {
                 coinAnimAmount={coinAnimAmount}
                 onPlayAgain={() => {
                   setUserGuess(null)
+                  setIsVerdictPending(false)
+                  setVerdictInfo(null)
                   setGameState('MATCHMAKING')
                 }}
                 onHome={() => {
                   setUserGuess(null)
+                  setIsVerdictPending(false)
+                  setVerdictInfo(null)
                   setGameState('HOME')
                 }}
+                isVerdictPending={isVerdictPending}
+                verdictInfo={verdictInfo}
               />
             </motion.div>
           )}

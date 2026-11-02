@@ -11,6 +11,8 @@ import { expiryWorker } from './jobs/expiry-worker.js'
 import { healthRoutes } from './routes/health.js'
 import { meRoutes } from './routes/me.js'
 import { gamesRoutes } from './routes/games.js'
+import { questsRoutes } from './routes/quests.js'
+import { statsRoutes } from './routes/stats.js'
 
 export function buildApp() {
   const app = Fastify({
@@ -19,8 +21,13 @@ export function buildApp() {
 
   function isOriginAllowed(origin?: string): boolean {
     if (!origin) return true
+    if (origin === env.CLIENT_ORIGIN) return true
+    if (env.CLIENT_ORIGIN.split(',').map((s) => s.trim()).includes(origin)) return true
+    try {
+      const hostname = new URL(origin).hostname
+      if (hostname.endsWith('.vercel.app') || hostname === 'vercel.app') return true
+    } catch {}
     return (
-      origin === env.CLIENT_ORIGIN ||
       /^http:\/\/(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(
         origin,
       )
@@ -80,6 +87,8 @@ export function buildApp() {
   app.register(healthRoutes)
   app.register(meRoutes)
   app.register(gamesRoutes)
+  app.register(questsRoutes)
+  app.register(statsRoutes)
 
   // Authenticated WebSocket Route
   app.register(async (fastify) => {

@@ -48,15 +48,27 @@ export class AIService {
       throw err
     }
 
+    const userMessages = options.messages.filter((m) => m.senderType === 'HUMAN')
+    const chatTurns: ChatMessageContext[] = options.messages.map((m) => ({
+      role: (m.senderType === 'HUMAN' ? 'user' : 'assistant') as 'user' | 'assistant',
+      content: m.content,
+    }))
+
+    // Jinja template engines (Groq/Qwen/Llama) require at least one user query.
+    // If the match just started and AI is the first sender, supply a casual opening prompt.
+    if (userMessages.length === 0) {
+      chatTurns.push({
+        role: 'user',
+        content: '[A new 2-minute chat just started. You send the first message. Give a casual, brief opening greeting like "yo", "sup", "hey", or ask what they are doing. Keep it short, 2-6 words.]',
+      })
+    }
+
     const formattedMessages: ChatMessageContext[] = [
       {
         role: 'system',
         content: options.systemPrompt || SYSTEM_PROMPT_V1,
       },
-      ...options.messages.map((m) => ({
-        role: (m.senderType === 'HUMAN' ? 'user' : 'assistant') as 'user' | 'assistant',
-        content: m.content,
-      })),
+      ...chatTurns,
     ]
 
     // Determine active key & provider

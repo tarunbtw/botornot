@@ -23,10 +23,7 @@ export class GuessService {
         throw new Error('GAME_NOT_FOUND')
       }
 
-      const now = new Date()
-      const isPastInitial =
-        gameRecord.initialEndsAt && now.getTime() >= gameRecord.initialEndsAt.getTime() - 3000
-      if (!['INITIAL_ENDED', 'GUESSING'].includes(gameRecord.status) && !isPastInitial) {
+      if (!['ACTIVE', 'INITIAL_ENDED', 'GUESSING'].includes(gameRecord.status)) {
         throw new Error('GAME_NOT_IN_GUESSING_STATE')
       }
 

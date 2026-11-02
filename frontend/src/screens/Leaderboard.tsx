@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from '../components/UI'
 import { CoinIcon } from '../components/CoinIcon'
 import { ArrowLeft, Trophy, FireFlame, Crown } from 'iconoir-react'
+import { fetchLeaderboard, type LeaderboardPlayer } from '../lib/api'
 
 interface LeaderboardProps {
   onBack: () => void
@@ -33,8 +34,30 @@ const MOCK_LEADERBOARD_STREAK = [
 
 export const Leaderboard: React.FC<LeaderboardProps> = ({ onBack, userCoins, userStreak }) => {
   const [tab, setTab] = useState<'coins' | 'streak'>('coins')
+  const [livePlayers, setLivePlayers] = useState<LeaderboardPlayer[]>([])
 
-  const rawData = tab === 'coins' ? [...MOCK_LEADERBOARD_COINS] : [...MOCK_LEADERBOARD_STREAK]
+  useEffect(() => {
+    fetchLeaderboard()
+      .then((players) => {
+        if (players && players.length > 0) {
+          setLivePlayers(players)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const rawData =
+    livePlayers.length >= 3
+      ? livePlayers.map((p, idx) => ({
+          id: idx + 1,
+          name: p.name,
+          score: tab === 'coins' ? p.coins : p.correctGuesses,
+          isUser: false,
+        }))
+      : tab === 'coins'
+      ? [...MOCK_LEADERBOARD_COINS]
+      : [...MOCK_LEADERBOARD_STREAK]
+
   const userScore = tab === 'coins' ? userCoins : userStreak
 
   const allPlayers = [

@@ -120,7 +120,9 @@ export async function handleWebSocketConnection(
           })
 
           if (result.matched) {
+            console.log('[WS Router] Matched game:', result.gameId, 'fetching game data...')
             const gameData = await gameService.getGameById(result.gameId)
+            console.log('[WS Router] Fetched game data:', gameData ? 'found' : 'null', 'endsAt:', gameData?.initialEndsAt)
             if (!gameData || !gameData.initialEndsAt) return
 
             connectionManager.registerGame(
@@ -128,6 +130,7 @@ export async function handleWebSocketConnection(
               gameData.players.map((p) => p.userId),
             )
 
+            console.log('[WS Router] Broadcasting game.started to players:', gameData.players.map(p => p.userId))
             for (const p of gameData.players) {
               connectionManager.sendToUser(p.userId, {
                 type: 'game.matched',
@@ -209,6 +212,26 @@ export async function handleWebSocketConnection(
           break
         }
 
+        case 'chat.typing': {
+          const { gameId, isTyping } = event.payload
+          const gameData = await gameService.getGameById(gameId)
+          if (gameData && gameData.players) {
+            for (const p of gameData.players) {
+              if (p.userId !== userId) {
+                connectionManager.sendToUser(p.userId, {
+                  type: 'chat.typing',
+                  payload: {
+                    gameId,
+                    userId,
+                    isTyping,
+                  },
+                })
+              }
+            }
+          }
+          break
+        }
+
         case 'guess.submit': {
           const { gameId, guess } = event.payload
           const result = await guessService.submitGuess({ gameId, userId, guess })
@@ -280,7 +303,9 @@ export async function handleWebSocketConnection(
         }
 
         case 'game.leave': {
-          // Graceful leave
+          const { gameId } = event.payload
+          await gameService.abandonGameForUser(gameId, userId)
+          connectionManager.unregisterGame(gameId)
           break
         }
       }

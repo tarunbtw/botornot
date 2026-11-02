@@ -106,6 +106,33 @@ export class StatsService {
       }
     }
   }
+
+  async getLeaderboard(limit = 50) {
+    try {
+      const topPlayers = await db
+        .select({
+          publicId: userProfile.publicId,
+          totalGames: userProfile.totalGames,
+          totalCorrectGuesses: userProfile.totalCorrectGuesses,
+          tokenBalance: userProfile.tokenBalance,
+        })
+        .from(userProfile)
+        .orderBy(sql`${userProfile.totalCorrectGuesses} DESC, ${userProfile.tokenBalance} DESC`)
+        .limit(limit)
+
+      return topPlayers.map((p, idx) => ({
+        rank: idx + 1,
+        publicId: p.publicId,
+        name: `Detective #${p.publicId.slice(0, 4)}`,
+        totalGames: p.totalGames,
+        correctGuesses: p.totalCorrectGuesses,
+        coins: p.tokenBalance,
+        accuracy: p.totalGames > 0 ? Math.round((p.totalCorrectGuesses / p.totalGames) * 100) : 70,
+      }))
+    } catch {
+      return []
+    }
+  }
 }
 
 export const statsService = new StatsService()

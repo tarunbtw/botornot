@@ -20,10 +20,11 @@ export class MatchmakingService {
     userId: string,
     onMatchFound: (result: { gameId: string; opponentType: 'HUMAN' | 'AI' }) => void,
   ): Promise<MatchResult> {
-    // 1. Ensure user is not blocked by a previous active game
+    // 1. Ensure user is not blocked by a lingering active game
     const existing = await gameService.getActiveGameForUser(userId)
     if (existing) {
-      throw new Error('ALREADY_IN_ACTIVE_GAME')
+      console.log(`[Matchmaking] User ${userId} has lingering game ${existing.game.id}; auto-completing to clear queue.`)
+      await gameService.abandonGameForUser(existing.game.id, userId)
     }
 
     // 2. Execute atomic match script

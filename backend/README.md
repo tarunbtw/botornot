@@ -10,25 +10,16 @@ Built with Fastify, WebSockets, PostgreSQL, Drizzle ORM, Redis, Better Auth (Goo
 
 ### Prerequisites
 - Node.js >= 20
-- Docker & Docker Compose (or Colima)
+- Neon PostgreSQL connection URL
+- Upstash Redis connection URL
 
-### Step 1: Start Infrastructure
-From the project root:
-```bash
-docker compose up -d
-```
-This starts:
-- PostgreSQL 16 on `localhost:5432` (`botornot` database)
-- Redis 7 on `localhost:6379`
+### Step 1: Configure Environment
+In `backend/.env`:
+- Set `DATABASE_URL` to your Neon PostgreSQL connection string.
+- Set `REDIS_URL` to your Upstash Redis URL (e.g. `rediss://...`).
+- Set `AI_PROVIDER=groq` and `GROQ_API_KEY=gsk_...`.
 
-### Step 2: Configure Environment
-Copy `.env.example` to `.env` in `backend/`:
-```bash
-cd backend
-cp .env.example .env
-```
-
-### Step 3: Run Database Migrations
+### Step 2: Run Database Migrations
 ```bash
 npm run db:migrate
 ```
