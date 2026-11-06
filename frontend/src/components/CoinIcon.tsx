@@ -56,22 +56,42 @@ export const CoinIcon: React.FC<CoinIconProps> = ({
         strokeWidth="1.8"
         strokeLinecap="round"
       />
-      {/* Embossed Turing 'T' Stamp with Solid Black Shadow and Crisp Face */}
-      <g>
-        {/* Drop shadow of T */}
-        <path
-          d="M10.5 11.5H21.5V14H17.5V22H14.5V14H10.5V11.5Z"
-          fill="#000000"
-        />
-        {/* Front face of T */}
-        <path
-          d="M10 11H21V13.5H17V21.5H14V13.5H10V11Z"
-          fill="#000000"
-        />
-        <path
-          d="M11 12H20V13H16.5V20.5H14.5V13H11V12Z"
-          fill="#FFF48C"
-        />
+      {/* Embossed Cyborg Face (Bot or Not Half Robot / Half Human) */}
+      <g transform="translate(6, 6) scale(0.714)">
+        {/* Outer Headgear / Top Cyber Crown */}
+        <rect x="9" y="1" width="10" height="2" fill="#000000" />
+        <rect x="7" y="3" width="14" height="2" fill="#E6BC00" />
+        <rect x="6" y="5" width="16" height="2" fill="#000000" />
+
+        {/* --- LEFT SIDE: ROBOT (White & Yellow Sensor) --- */}
+        <rect x="5" y="7" width="8" height="13" fill="#FFFFFF" />
+        <rect x="5" y="7" width="1" height="13" fill="#000000" />
+        <rect x="6" y="14" width="3" height="1" fill="#D1D5DB" />
+        <rect x="6" y="16" width="3" height="1" fill="#D1D5DB" />
+        {/* Robot Optic Sensor Eye */}
+        <rect x="7" y="9" width="4" height="4" fill="#000000" />
+        <rect x="8" y="10" width="2" height="2" fill="#FFD100" />
+        <rect x="9" y="10" width="1" height="1" fill="#FFFFFF" />
+        {/* Robot Cyber Port */}
+        <rect x="7" y="18" width="4" height="1" fill="#FFD100" />
+
+        {/* --- RIGHT SIDE: HUMAN FACE (Warm Yellow) --- */}
+        <rect x="15" y="7" width="8" height="13" fill="#FFD100" />
+        <rect x="21" y="7" width="2" height="13" fill="#000000" />
+        <rect x="16" y="8" width="4" height="1" fill="#000000" />
+        {/* Human Eye */}
+        <rect x="16" y="10" width="4" height="3" fill="#FFFFFF" />
+        <rect x="17" y="10" width="2" height="3" fill="#000000" />
+        <rect x="17" y="10" width="1" height="1" fill="#FFFFFF" />
+        {/* Human Mouth / Smile */}
+        <rect x="16" y="16" width="3" height="1" fill="#000000" />
+
+        {/* --- CENTER SPLIT DIVIDER --- */}
+        <rect x="13" y="5" width="2" height="15" fill="#000000" />
+
+        {/* --- JAW & CHIN BASE --- */}
+        <rect x="8" y="20" width="12" height="2" fill="#000000" />
+        <rect x="10" y="22" width="8" height="2" fill="#000000" />
       </g>
     </svg>
   )

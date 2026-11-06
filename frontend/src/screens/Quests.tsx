@@ -6,7 +6,6 @@ import {
   Gift,
   PlaySolid,
   Clock,
-  Sparks,
   Flash,
   PrecisionTool,
   FireFlame,
@@ -302,7 +301,7 @@ export const Quests: React.FC<QuestsProps> = ({
             }`}
           >
             <div className="flex items-center gap-3">
-              <Sparks className="w-6 h-6 text-black dark:text-white shrink-0" />
+              <Gift className="w-6 h-6 text-black dark:text-white shrink-0" />
               <div>
                 <h3 className="font-display font-black text-sm uppercase text-black dark:text-white leading-tight">
                   Master Bonus (+{ALL_QUESTS_BONUS} Coins)

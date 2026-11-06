@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { AnimatedGradient } from './AnimatedGradient'
-import { Xmark, Mail, Sparks } from 'iconoir-react'
+import { Xmark, Mail } from 'iconoir-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface DesktopSideBannerProps {
@@ -35,7 +35,6 @@ export const DesktopSideBanner: React.FC<DesktopSideBannerProps> = ({
         <div className="flex flex-col items-center">
           {/* Sponsored Ad Badge */}
           <div className="inline-flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700 rounded-full px-2 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider mb-1.5">
-            <Sparks className="w-2.5 h-2.5 text-[#FFD100]" />
             <span>Sponsored Ad</span>
           </div>
 

@@ -4,7 +4,7 @@ export type OpponentType = 'AI' | 'HUMAN'
 
 export interface Message {
   id: string
-  sender: 'user' | 'opponent'
+  sender: 'user' | 'opponent' | 'system'
   text: string
   timestamp: number
 }

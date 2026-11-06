@@ -60,12 +60,15 @@ export function Navbar({
 
   const handleScrollToHowItWorks = () => {
     onHomeClick?.()
-    setTimeout(() => {
+    const attemptScroll = (retries = 15) => {
       const el = document.getElementById('how-it-works')
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } else if (retries > 0) {
+        setTimeout(() => attemptScroll(retries - 1), 50)
       }
-    }, 60)
+    }
+    setTimeout(() => attemptScroll(), 50)
   }
 
   const avatarSeed = user?.email || user?.name || user?.publicId || 'player'

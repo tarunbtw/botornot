@@ -6,7 +6,6 @@ import {
   Trophy,
   Flash,
   PrecisionTool,
-  Sparks,
   ArrowRight,
   Activity,
   Gift,
@@ -69,7 +68,6 @@ export const Home: React.FC<HomeProps> = ({
         <div className="flex-1 flex flex-col items-center text-center max-w-lg lg:max-w-xl mx-auto min-w-0">
           {/* Subtle Badge */}
           <div className="inline-flex items-center gap-1.5 bg-[#FFD100] border border-black/20 rounded-full px-3 py-1 shadow-xs mb-5 font-mono text-xs font-bold uppercase tracking-wider text-black">
-            <Sparks className="w-3.5 h-3.5 text-black" />
             <span>2-Minute Social Turing Game</span>
           </div>
 
