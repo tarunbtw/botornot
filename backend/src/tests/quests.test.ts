@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { buildApp } from '../app.js'
-import { auth } from '../auth/auth.js'
+import { db } from '../db/index.js'
 import { questsService } from '../modules/quests/service.js'
-import { tokenLedgerService } from '../modules/tokens/ledger.js'
 
 describe('Quests & Exploit Prevention', () => {
   const mockUser = {
@@ -29,7 +28,6 @@ describe('Quests & Exploit Prevention', () => {
 
   it('rejects unauthenticated requests to /api/quests with 401', async () => {
     const app = buildApp()
-    vi.spyOn(auth.api, 'getSession').mockResolvedValue(null)
 
     const res = await app.inject({
       method: 'GET',
@@ -42,10 +40,8 @@ describe('Quests & Exploit Prevention', () => {
 
   it('returns quests status for authenticated user', async () => {
     const app = buildApp()
-    vi.spyOn(auth.api, 'getSession').mockResolvedValue({
-      user: mockUser,
-      session: mockSession,
-    } as any)
+    vi.spyOn(db.query.session, 'findFirst').mockResolvedValue(mockSession as any)
+    vi.spyOn(db.query.user, 'findFirst').mockResolvedValue(mockUser as any)
 
     vi.spyOn(questsService, 'getTodayQuests').mockResolvedValue({
       date: '2026-11-01',
@@ -61,6 +57,9 @@ describe('Quests & Exploit Prevention', () => {
     const res = await app.inject({
       method: 'GET',
       url: '/api/quests',
+      headers: {
+        authorization: `Bearer ${mockSession.token}`,
+      },
     })
 
     expect(res.statusCode).toBe(200)
@@ -71,10 +70,8 @@ describe('Quests & Exploit Prevention', () => {
 
   it('allows claiming daily login and returns new balance', async () => {
     const app = buildApp()
-    vi.spyOn(auth.api, 'getSession').mockResolvedValue({
-      user: mockUser,
-      session: mockSession,
-    } as any)
+    vi.spyOn(db.query.session, 'findFirst').mockResolvedValue(mockSession as any)
+    vi.spyOn(db.query.user, 'findFirst').mockResolvedValue(mockUser as any)
 
     vi.spyOn(questsService, 'claimQuest').mockResolvedValue({
       reward: 10,
@@ -94,6 +91,9 @@ describe('Quests & Exploit Prevention', () => {
     const res = await app.inject({
       method: 'POST',
       url: '/api/quests/claim',
+      headers: {
+        authorization: `Bearer ${mockSession.token}`,
+      },
       payload: { questId: 'login' },
     })
 
@@ -107,16 +107,17 @@ describe('Quests & Exploit Prevention', () => {
 
   it('prevents duplicate claims returning 409 ALREADY_CLAIMED', async () => {
     const app = buildApp()
-    vi.spyOn(auth.api, 'getSession').mockResolvedValue({
-      user: mockUser,
-      session: mockSession,
-    } as any)
+    vi.spyOn(db.query.session, 'findFirst').mockResolvedValue(mockSession as any)
+    vi.spyOn(db.query.user, 'findFirst').mockResolvedValue(mockUser as any)
 
     vi.spyOn(questsService, 'claimQuest').mockRejectedValue(new Error('LOGIN_ALREADY_CLAIMED_TODAY'))
 
     const res = await app.inject({
       method: 'POST',
       url: '/api/quests/claim',
+      headers: {
+        authorization: `Bearer ${mockSession.token}`,
+      },
       payload: { questId: 'login' },
     })
 
@@ -127,16 +128,17 @@ describe('Quests & Exploit Prevention', () => {
 
   it('rejects claiming quest if requirements are not met', async () => {
     const app = buildApp()
-    vi.spyOn(auth.api, 'getSession').mockResolvedValue({
-      user: mockUser,
-      session: mockSession,
-    } as any)
+    vi.spyOn(db.query.session, 'findFirst').mockResolvedValue(mockSession as any)
+    vi.spyOn(db.query.user, 'findFirst').mockResolvedValue(mockUser as any)
 
     vi.spyOn(questsService, 'claimQuest').mockRejectedValue(new Error('REQUIREMENTS_NOT_MET: Play at least 3 matches'))
 
     const res = await app.inject({
       method: 'POST',
       url: '/api/quests/claim',
+      headers: {
+        authorization: `Bearer ${mockSession.token}`,
+      },
       payload: { questId: 'play3' },
     })
 
@@ -145,4 +147,3 @@ describe('Quests & Exploit Prevention', () => {
     expect(body.error).toBe('REQUIREMENTS_NOT_MET')
   })
 })
-

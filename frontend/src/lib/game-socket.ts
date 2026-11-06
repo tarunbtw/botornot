@@ -131,6 +131,14 @@ export class GameSocketClient {
     }
   }
 
+  reconnect() {
+    if (this.ws) {
+      this.ws.close()
+      this.ws = null
+    }
+    this.connect()
+  }
+
   subscribe(handler: EventHandler): () => void {
     this.handlers.add(handler)
     return () => {

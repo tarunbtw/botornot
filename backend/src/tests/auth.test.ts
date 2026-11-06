@@ -1,13 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
 import { buildApp } from '../app.js'
-import { auth } from '../auth/auth.js'
 import { db } from '../db/index.js'
 
 describe('Authentication & Authorization', () => {
   it('returns 401 Unauthorized for unauthenticated /api/me request', async () => {
     const app = buildApp()
-
-    vi.spyOn(auth.api, 'getSession').mockResolvedValue(null)
 
     const response = await app.inject({
       method: 'GET',
@@ -21,7 +18,6 @@ describe('Authentication & Authorization', () => {
 
   it('returns 401 Unauthorized for unauthenticated DELETE /api/me request', async () => {
     const app = buildApp()
-    vi.spyOn(auth.api, 'getSession').mockResolvedValue(null)
 
     const response = await app.inject({
       method: 'DELETE',
@@ -52,10 +48,8 @@ describe('Authentication & Authorization', () => {
       updatedAt: new Date(),
     }
 
-    vi.spyOn(auth.api, 'getSession').mockResolvedValue({
-      user: mockUser,
-      session: mockSession,
-    } as any)
+    vi.spyOn(db.query.session, 'findFirst').mockResolvedValue(mockSession as any)
+    vi.spyOn(db.query.user, 'findFirst').mockResolvedValue(mockUser as any)
 
     vi.spyOn(db, 'delete').mockReturnValue({
       where: vi.fn().mockResolvedValue([{ id: mockUser.id }]),
@@ -64,6 +58,9 @@ describe('Authentication & Authorization', () => {
     const response = await app.inject({
       method: 'DELETE',
       url: '/api/me',
+      headers: {
+        authorization: `Bearer ${mockSession.token}`,
+      },
     })
 
     expect(response.statusCode).toBe(200)

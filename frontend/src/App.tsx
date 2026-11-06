@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { GameState, OpponentType, Message } from './types'
 import { Navbar } from './components/Navbar'
-import { fetchAIResponse, resetMatchPersona } from './lib/ai-client'
 import { Home } from './screens/Home'
 import { Matchmaking } from './screens/Matchmaking'
 import { Chat } from './screens/Chat'
@@ -24,9 +23,15 @@ import {
   loadQuestsData,
   saveQuestsData,
   getUnclaimedCount,
-  getAdsWatchedInWindow,
   type DailyQuestsData,
 } from './lib/quests'
+import {
+  initCrazyGames,
+  cgGameplayStart,
+  cgGameplayStop,
+  cgHappyTime,
+  cgRequestRewardedAd,
+} from './lib/crazygames'
 
 export default function App() {
   const [gameState, setGameState] = useState<GameState>('HOME')
@@ -65,16 +70,7 @@ export default function App() {
   const [opponentTyping, setOpponentTyping] = useState<boolean>(false)
   const [isOpponentFirstTurn, setIsOpponentFirstTurn] = useState<boolean>(false)
   const [isStrangerExited, setIsStrangerExited] = useState<boolean>(false)
-  const isAiRespondingRef = useRef<boolean>(false)
-  const aiTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
-  const aiGenerationIdRef = useRef<number>(0)
 
-  const clearAiTimers = () => {
-    aiTimersRef.current.forEach(clearTimeout)
-    aiTimersRef.current = []
-    setOpponentTyping(false)
-    aiGenerationIdRef.current++
-  }
 
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false)
   const [questsData, setQuestsData] = useState<DailyQuestsData>(() => loadQuestsData())
@@ -186,31 +182,28 @@ export default function App() {
     playReward()
   }
 
-  // Centrally handles watching an ad and tracks 12-hour limit (max 5 ads per 12h)
+  // Centrally handles CrazyGames rewarded ad to earn +10 coins
   const handleRecordAdWatched = () => {
-    const adInfo = getAdsWatchedInWindow(questsData.adWatchTimestamps)
-    if (!adInfo.canWatch) {
-      alert(`Daily limit reached: Maximum 5 ads per 12 hours. Please check back later!`)
-      return
-    }
-
-    const now = Date.now()
-    setQuestsData((prev) => {
-      const updated = {
-        ...prev,
-        adsWatchedToday: prev.adsWatchedToday + 1,
-        adWatchTimestamps: [...(prev.adWatchTimestamps || []), now],
-      }
-      saveQuestsData(updated)
-      return updated
+    cgRequestRewardedAd(() => {
+      const now = Date.now()
+      setQuestsData((prev) => {
+        const updated = {
+          ...prev,
+          adsWatchedToday: prev.adsWatchedToday + 1,
+          adWatchTimestamps: [...(prev.adWatchTimestamps || []), now],
+        }
+        saveQuestsData(updated)
+        return updated
+      })
+      handleCoinsChange(coins + 10)
+      playReward()
     })
-    handleCoinsChange(coins + 10)
   }
 
   const handleForfeitMatch = () => {
-    clearAiTimers()
-    isAiRespondingRef.current = false
+    cgGameplayStop()
     setIsOpponentFirstTurn(false)
+    setOpponentTyping(false)
     setStreak((prev) => Math.max(0, prev - 1))
     setUserGuess(null)
     setIsVerdictPending(false)
@@ -230,6 +223,11 @@ export default function App() {
   // Track active backend game ID if connected to Fastify backend
   const activeBackendGameIdRef = useRef<string | null>(null)
 
+  // Initialize CrazyGames SDK on startup
+  useEffect(() => {
+    initCrazyGames()
+  }, [])
+
   // Sync user profile & token balance from backend
   useEffect(() => {
     fetchMe().then((me) => {
@@ -245,6 +243,7 @@ export default function App() {
             if (typeof guest.tokenBalance === 'number') {
               setCoins(guest.tokenBalance)
             }
+            gameSocket.reconnect()
           }
         }).catch(() => {})
       }
@@ -307,7 +306,7 @@ export default function App() {
       if (event.type === 'game.started') {
         activeBackendGameIdRef.current = event.payload.gameId
         playMatchFound()
-        clearAiTimers()
+        cgGameplayStart()
         setChatMessages([])
         setChatTimeLeft(120)
         setIsExtendedChat(false)
@@ -366,6 +365,7 @@ export default function App() {
       }
 
       if (event.type === 'session.ended' || event.type === 'guess.request') {
+        cgGameplayStop()
         if (isExtendedChat) {
           setIsStrangerExited(true)
         } else {
@@ -383,6 +383,7 @@ export default function App() {
           reward: event.payload.reward,
         })
         if (event.payload.isCorrect) {
+          cgHappyTime()
           setStreak((prev) => prev + 1)
           setWins((prev) => prev + 1)
         } else {
@@ -408,44 +409,24 @@ export default function App() {
     }
   }, [])
 
-  // --- Matchmaking Queue Trigger with Resilient Fallback ---
+  // --- Matchmaking Queue Trigger ---
   useEffect(() => {
     if (gameState !== 'MATCHMAKING') return
 
     activeBackendGameIdRef.current = null
     gameSocket.joinQueue()
 
-    // Safety timeout: if backend does not match after 10s, start local offline simulation
-    const fallbackTimer = setTimeout(() => {
+    // Safety retry: if server has not matched within 10s, re-enter queue
+    const retryTimer = setTimeout(() => {
       if (gameState === 'MATCHMAKING' && !activeBackendGameIdRef.current) {
-        console.warn('[Matchmaking] Backend queue timeout; starting offline simulation')
-        playMatchFound()
-        clearAiTimers()
-        const isAI = Math.random() > 0.45
-        const opponentStarts = Math.random() > 0.5
-        setIsOpponentFirstTurn(opponentStarts)
-        setOpponent(isAI ? 'AI' : 'HUMAN')
-        setChatMessages([])
-        setChatTimeLeft(120)
-        setIsExtendedChat(false)
-        setIsStrangerExited(false)
-        setFreeExtendedMessagesLeft(0)
-        setGameState('CHAT')
-        resetMatchPersona()
-
-        if (opponentStarts) {
-          const thisGen = ++aiGenerationIdRef.current
-          const openingTimer = setTimeout(() => {
-            if (thisGen !== aiGenerationIdRef.current) return
-            triggerAiOpponentReply([])
-          }, 1200 + Math.floor(Math.random() * 400))
-          aiTimersRef.current.push(openingTimer)
-        }
+        console.warn('[Matchmaking] Queue timeout; reconnecting to server...')
+        gameSocket.reconnect()
+        gameSocket.joinQueue()
       }
     }, 10000)
 
     return () => {
-      clearTimeout(fallbackTimer)
+      clearTimeout(retryTimer)
       if (gameState === 'MATCHMAKING' && !activeBackendGameIdRef.current) {
         gameSocket.cancelQueue()
       }
@@ -460,89 +441,10 @@ export default function App() {
         return () => clearTimeout(timer)
       } else {
         setGameState('GUESS')
+        cgGameplayStop()
       }
     }
   }, [gameState, chatTimeLeft, isExtendedChat])
-
-  // --- Opponent Conversational AI (Groq Cloud + Persistent Persona) ---
-  // Clean up timers on unmount or screen transition
-  useEffect(() => {
-    if (gameState !== 'CHAT') {
-      clearAiTimers()
-      isAiRespondingRef.current = false
-    }
-  }, [gameState])
-
-  const triggerAiOpponentReply = async (history: Message[]) => {
-    // In normal mode: STRICT TURN-TAKING: Don't reply if last message was already from opponent
-    if (!isExtendedChat) {
-      const lastMsg = history[history.length - 1]
-      if (lastMsg && lastMsg.sender === 'opponent') return
-    }
-
-    const thisGenId = ++aiGenerationIdRef.current
-    isAiRespondingRef.current = true
-
-    try {
-      const result = await fetchAIResponse(
-        history
-          .filter((m): m is Message & { sender: 'user' | 'opponent' } => m.sender !== 'system')
-          .map((m) => ({
-            sender: m.sender,
-            text: m.text,
-          }))
-      )
-
-      if (thisGenId !== aiGenerationIdRef.current) return
-
-      // 1. Reading pause — human reads the incoming message first
-      await new Promise<void>((resolve) => {
-        const timer = setTimeout(resolve, result.readingDelayMs)
-        aiTimersRef.current.push(timer)
-      })
-
-      if (thisGenId !== aiGenerationIdRef.current) return
-
-      // 2. Typing indicator ON — human starts typing their reply
-      setOpponentTyping(true)
-
-      // 3. Typing duration — proportional to response length
-      await new Promise<void>((resolve) => {
-        const timer = setTimeout(resolve, result.typingDelayMs)
-        aiTimersRef.current.push(timer)
-      })
-
-      setOpponentTyping(false)
-
-      if (thisGenId !== aiGenerationIdRef.current) return
-
-      // 4. Deliver message
-      if (result.text) {
-        setChatMessages((prev) => {
-          if (!isExtendedChat && prev.length > 0 && prev[prev.length - 1].sender === 'opponent') {
-            return prev
-          }
-          return [
-            ...prev,
-            {
-              id: Date.now().toString(),
-              sender: 'opponent',
-              text: result.text,
-              timestamp: Date.now(),
-            },
-          ]
-        })
-      }
-      setIsOpponentFirstTurn(false)
-    } catch (err) {
-      console.warn('[AI] Error in reply generation:', err)
-      setOpponentTyping(false)
-    } finally {
-      if (thisGenId === aiGenerationIdRef.current) {
-        isAiRespondingRef.current = false
-      }
-    }
-  }
 
   // --- Handle User Sending a Message ---
   const handleSendMessage = (text: string) => {
@@ -558,9 +460,6 @@ export default function App() {
       if (lastMsg && lastMsg.sender === 'user') return
     }
 
-    // Cancel any pending AI timers/generations
-    clearAiTimers()
-    isAiRespondingRef.current = false
     setIsOpponentFirstTurn(false)
 
     if (isExtendedChat) {
@@ -579,78 +478,32 @@ export default function App() {
       timestamp: Date.now(),
     }
 
-    const updated = [...chatMessages, newMsg]
-    setChatMessages(updated)
+    setChatMessages((prev) => [...prev, newMsg])
 
-    // Forward to backend game socket if active game exists
     if (activeBackendGameIdRef.current) {
-      try {
-        gameSocket.sendMessage(activeBackendGameIdRef.current, trimmed)
-      } catch {
-        // local fallback
-      }
-    } else {
-      // Opponent replies on their turn only during offline fallback simulation
-      triggerAiOpponentReply(updated)
+      gameSocket.sendMessage(activeBackendGameIdRef.current, trimmed)
     }
   }
 
   // --- Handle Verdict Guess ---
   const handleGuess = (guess: OpponentType) => {
     setUserGuess(guess)
+    setIsVerdictPending(true)
+    setVerdictInfo(null)
 
     if (activeBackendGameIdRef.current) {
-      setIsVerdictPending(true)
-      try {
-        gameSocket.submitGuess(activeBackendGameIdRef.current, guess)
-      } catch {
-        // local fallback
-      }
-    } else {
-      const isCorrect = guess === opponent
-      setIsVerdictPending(false)
-      setVerdictInfo({
-        isCorrect,
-        actualOpponent: opponent,
-        reward: isCorrect ? 10 : 5,
-      })
-
-      if (isCorrect) {
-        handleCoinsChange(coins + 10)
-        setStreak((prev) => prev + 1)
-        setWins((prev) => prev + 1)
-      } else {
-        handleCoinsChange(coins + 5)
-        setStreak(0)
-        setLosses((prev) => prev + 1)
-      }
-
-      // Update Daily Quests progress (Matches played and correct guesses)
-      setQuestsData((prev) => {
-        const updated = {
-          ...prev,
-          matchesPlayed: prev.matchesPlayed + 1,
-          correctGuesses: isCorrect ? prev.correctGuesses + 1 : prev.correctGuesses,
-        }
-        saveQuestsData(updated)
-        return updated
-      })
+      gameSocket.submitGuess(activeBackendGameIdRef.current, guess)
     }
   }
 
   // --- Handle 30-Second Turn / Inactivity Timeout ---
   const handleTypingTimeout = (culprit: 'user' | 'opponent') => {
-    clearAiTimers()
-    isAiRespondingRef.current = false
     setIsOpponentFirstTurn(false)
 
     if (culprit === 'user') {
-      // The user failed to send within 30s: user loses streak!
       setStreak(0)
     }
-    // If culprit was 'opponent', user does not lose or gain streak: streak remains tie/unchanged!
 
-    // Abort game and start a new game with matchmaking immediately
     if (activeBackendGameIdRef.current) {
       try {
         gameSocket.send({
@@ -669,10 +522,13 @@ export default function App() {
 
   // --- Handle Extend Chat ---
   const handleExtendChat = () => {
-    setIsExtendedChat(true)
-    setFreeExtendedMessagesLeft(1)
-    setChatTimeLeft(300) // add 5 minutes extended
-    setGameState('CHAT')
+    cgRequestRewardedAd(() => {
+      setIsExtendedChat(true)
+      setFreeExtendedMessagesLeft(1)
+      setChatTimeLeft(300)
+      cgGameplayStart()
+      setGameState('CHAT')
+    })
   }
 
   return (

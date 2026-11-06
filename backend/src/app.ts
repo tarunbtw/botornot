@@ -3,7 +3,6 @@ import fastifyCors from '@fastify/cors'
 import fastifyCookie from '@fastify/cookie'
 import fastifyWebsocket from '@fastify/websocket'
 import { env } from './config/env.js'
-import { auth } from './auth/auth.js'
 import { getWsSession } from './auth/middleware.js'
 import { handleWebSocketConnection } from './websocket/router.js'
 import { connectionManager } from './websocket/connection-manager.js'
@@ -21,11 +20,22 @@ export function buildApp() {
 
   function isOriginAllowed(origin?: string): boolean {
     if (!origin) return true
-    if (origin === env.CLIENT_ORIGIN) return true
+    if (env.CLIENT_ORIGIN === '*' || origin === env.CLIENT_ORIGIN) return true
     if (env.CLIENT_ORIGIN.split(',').map((s) => s.trim()).includes(origin)) return true
     try {
       const hostname = new URL(origin).hostname
-      if (hostname.endsWith('.vercel.app') || hostname === 'vercel.app') return true
+      if (
+        hostname.endsWith('.vercel.app') ||
+        hostname === 'vercel.app' ||
+        hostname.endsWith('.crazygames.com') ||
+        hostname.endsWith('.gamebox.com') ||
+        hostname === 'crazygames.com' ||
+        hostname.endsWith('.1001juegos.com') ||
+        hostname.endsWith('.speelspelletjes.nl') ||
+        hostname.endsWith('.railway.app')
+      ) {
+        return true
+      }
     } catch {}
     return (
       /^http:\/\/(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(
@@ -46,42 +56,6 @@ export function buildApp() {
 
   // WebSockets
   app.register(fastifyWebsocket)
-
-  // Better Auth Handler
-  app.all('/api/auth/*', async (request, reply) => {
-    const url = new URL(request.url, `${request.protocol}://${request.hostname}`)
-    const headers = new Headers()
-    for (const [key, value] of Object.entries(request.headers)) {
-      if (value) {
-        if (Array.isArray(value)) {
-          value.forEach((v) => headers.append(key, v))
-        } else {
-          headers.set(key, value)
-        }
-      }
-    }
-
-    const body =
-      ['GET', 'HEAD'].includes(request.method) || !request.body
-        ? undefined
-        : typeof request.body === 'string'
-        ? request.body
-        : JSON.stringify(request.body)
-
-    const webReq = new Request(url.toString(), {
-      method: request.method,
-      headers,
-      body,
-    })
-
-    const res = await auth.handler(webReq)
-    reply.status(res.status)
-    res.headers.forEach((val, key) => {
-      reply.header(key, val)
-    })
-    const textData = await res.text()
-    return reply.send(textData)
-  })
 
   // REST Routes
   app.register(healthRoutes)

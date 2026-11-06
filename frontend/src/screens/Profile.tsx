@@ -8,14 +8,10 @@ import {
   FireFlame,
   PrecisionTool,
   Trophy,
-  ShieldCheck,
-  LogIn,
-  LogOut,
   Trash,
 } from 'iconoir-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { authClient } from '../lib/auth-client'
-import { logout, deleteAccount, type UserProfileResponse } from '../lib/api'
+import { deleteAccount, type UserProfileResponse } from '../lib/api'
 
 interface ProfileProps {
   onBack: () => void
@@ -42,7 +38,6 @@ export const Profile: React.FC<ProfileProps> = ({
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const isGuest = !user || user.id.startsWith('guest_')
   const totalGames = wins + losses
   const accuracy = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 63
   const publicId = user?.publicId || 'ANON-HUMAN'
@@ -55,37 +50,15 @@ export const Profile: React.FC<ProfileProps> = ({
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleGoogleSignIn = async () => {
-    try {
-      await authClient.signIn.social({
-        provider: 'google',
-        callbackURL: window.location.href,
-      })
-    } catch (err) {
-      console.error('Google sign-in error:', err)
-    }
-  }
-
-  const handleLogout = async () => {
-    await logout()
-    onUserUpdate(null)
-    onBack()
-    window.location.reload()
-  }
-
-  const handleDeleteAccount = async () => {
+  const handleResetData = async () => {
     setIsDeleting(true)
-    const success = await deleteAccount()
+    await deleteAccount()
     setIsDeleting(false)
     setShowDeleteModal(false)
-    if (success) {
-      onUserUpdate(null)
-      localStorage.clear()
-      onBack()
-      window.location.reload()
-    } else {
-      alert('Failed to delete account. Please try again.')
-    }
+    onUserUpdate(null)
+    localStorage.clear()
+    onBack()
+    window.location.reload()
   }
 
   return (
@@ -142,7 +115,7 @@ export const Profile: React.FC<ProfileProps> = ({
                   </div>
 
                   <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 border border-black/10 dark:border-neutral-700">
-                    {isGuest ? 'Guest Player' : 'Google Account'}
+                    Player
                   </span>
                 </div>
               </div>
@@ -200,70 +173,34 @@ export const Profile: React.FC<ProfileProps> = ({
           </Card>
         </div>
 
-        {/* Account Management Card */}
+        {/* Player Session Card */}
         <Card className="p-6">
           <h3 className="font-display font-black text-base uppercase text-black dark:text-white mb-4">
-            Account Management
+            Player Session
           </h3>
 
-          {isGuest ? (
-            <div className="p-5 bg-[#FFF8D6] dark:bg-[#201F12] rounded-xl border border-black/15 dark:border-neutral-700 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div>
-                <h4 className="font-display font-black text-base text-black dark:text-white">
-                  Save Your Progress
-                </h4>
-                <p className="text-xs sm:text-sm font-bold text-neutral-700 dark:text-neutral-300 mt-0.5">
-                  Link with Google to sync your coins, streaks, and match history across devices.
-                </p>
-              </div>
-              <Button
-                variant="dark"
-                size="md"
-                onClick={handleGoogleSignIn}
-                className="whitespace-nowrap px-5 py-2.5 text-xs font-black uppercase tracking-wider shrink-0"
-              >
-                <LogIn className="w-4 h-4 mr-1.5" />
-                Sign in with Google
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-[#FAFAF8] dark:bg-[#121218] rounded-xl border border-black/20 dark:border-neutral-700">
-                <div className="flex items-center gap-2.5">
-                  <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-                  <div>
-                    <div className="text-sm font-bold text-black dark:text-white">{user?.email}</div>
-                    <div className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">Authenticated Google Account</div>
-                  </div>
-                </div>
-
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleLogout}
-                  className="px-4 py-2 text-xs font-bold text-neutral-800 dark:text-neutral-200 shrink-0"
-                >
-                  <LogOut className="w-3.5 h-3.5 mr-1" />
-                  Sign Out
-                </Button>
-              </div>
-
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setShowDeleteModal(true)}
-                  className="text-xs font-bold text-neutral-400 hover:text-red-600 transition-colors cursor-pointer inline-flex items-center gap-1.5"
-                >
-                  <Trash className="w-3.5 h-3.5" />
-                  <span>Delete Account</span>
-                </button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-[#FAFAF8] dark:bg-[#121218] rounded-xl border border-black/20 dark:border-neutral-700">
+            <div>
+              <div className="text-sm font-bold text-black dark:text-white">Active CrazyGames Player</div>
+              <div className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">
+                Progress and stats are saved locally and synced with the game server.
               </div>
             </div>
-          )}
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowDeleteModal(true)}
+              className="px-4 py-2 text-xs font-bold text-red-600 dark:text-red-400 border-red-200 dark:border-red-900 shrink-0"
+            >
+              <Trash className="w-3.5 h-3.5 mr-1" />
+              Reset Stats
+            </Button>
+          </div>
         </Card>
       </div>
 
-      {/* Delete Account Confirmation Modal */}
+      {/* Reset Stats Confirmation Modal */}
       <AnimatePresence>
         {showDeleteModal && (
           <motion.div
@@ -282,10 +219,10 @@ export const Profile: React.FC<ProfileProps> = ({
                 <Trash className="w-6 h-6" />
               </div>
               <h3 className="font-display font-black text-xl text-black dark:text-white mb-1">
-                Delete Account?
+                Reset Player Stats?
               </h3>
               <p className="text-xs font-bold text-neutral-600 dark:text-neutral-400 mb-5 leading-relaxed">
-                This will permanently remove your user profile, coin balance, and streak history. This action cannot be undone.
+                This will clear your local streak, wins, coins, and start a fresh session. This action cannot be undone.
               </p>
 
               <div className="flex gap-2.5">
@@ -293,10 +230,10 @@ export const Profile: React.FC<ProfileProps> = ({
                   variant="danger"
                   fullWidth
                   disabled={isDeleting}
-                  onClick={handleDeleteAccount}
+                  onClick={handleResetData}
                   className="py-2.5 text-xs font-black uppercase tracking-wider"
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete'}
+                  {isDeleting ? 'Resetting...' : 'Yes, Reset'}
                 </Button>
                 <Button
                   variant="secondary"

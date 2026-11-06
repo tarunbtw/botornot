@@ -214,21 +214,18 @@ export async function handleWebSocketConnection(
 
         case 'chat.typing': {
           const { gameId, isTyping } = event.payload
-          const gameData = await gameService.getGameById(gameId)
-          if (gameData && gameData.players) {
-            for (const p of gameData.players) {
-              if (p.userId !== userId) {
-                connectionManager.sendToUser(p.userId, {
-                  type: 'chat.typing',
-                  payload: {
-                    gameId,
-                    userId,
-                    isTyping,
-                  },
-                })
-              }
-            }
-          }
+          await connectionManager.broadcastToGame(
+            gameId,
+            {
+              type: 'chat.typing',
+              payload: {
+                gameId,
+                userId,
+                isTyping,
+              },
+            },
+            userId,
+          )
           break
         }
 

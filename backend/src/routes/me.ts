@@ -127,11 +127,11 @@ export const meRoutes: FastifyPluginAsync = async (fastify) => {
       expiresAt,
     })
 
-    reply.setCookie('better-auth.session_token', sessionToken, {
+    reply.setCookie('session_token', sessionToken, {
       path: '/',
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'none',
       expires: expiresAt,
     })
 

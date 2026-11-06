@@ -1,11 +1,8 @@
-import crypto from 'crypto'
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import type { IncomingMessage } from 'http'
 import { eq, and, gt } from 'drizzle-orm'
-import { auth } from './auth.js'
 import { db } from '../db/index.js'
 import { session, user } from '../db/schema/auth.js'
-import { env } from '../config/env.js'
 
 export interface AuthenticatedUser {
   id: string
@@ -29,32 +26,14 @@ declare module 'fastify' {
 }
 
 /**
- * Direct lookup in database session table with HMAC verification if signature is present.
+ * Direct lookup in database session table for guest / player sessions.
  */
-async function verifyDirectSessionToken(
+async function verifySessionToken(
   rawToken: string,
 ): Promise<{ user: AuthenticatedUser; session: AuthenticatedSession } | null> {
   try {
-    const parts = rawToken.split('.')
-    const cleanToken = parts[0]
+    const cleanToken = rawToken.split('.')[0]?.trim()
     if (!cleanToken) return null
-
-    // If token has a cookie HMAC signature, verify it against BETTER_AUTH_SECRET
-    if (parts.length > 1 && parts[1]) {
-      const sig = parts[1]
-      const expectedB64 = crypto
-        .createHmac('sha256', env.BETTER_AUTH_SECRET)
-        .update(cleanToken)
-        .digest('base64url')
-      const expectedHex = crypto
-        .createHmac('sha256', env.BETTER_AUTH_SECRET)
-        .update(cleanToken)
-        .digest('hex')
-
-      if (sig !== expectedB64 && sig !== expectedHex) {
-        return null
-      }
-    }
 
     const sessionRow = await db.query.session.findFirst({
       where: and(eq(session.token, cleanToken), gt(session.expiresAt, new Date())),
@@ -81,56 +60,28 @@ async function verifyDirectSessionToken(
       },
     }
   } catch (err) {
-    console.error('[verifyDirectSessionToken error]:', err)
+    console.error('[verifySessionToken error]:', err)
     return null
   }
 }
 
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   try {
-    // 1. Try Better Auth's standard session parser
-    const headers = new Headers()
-    for (const [key, value] of Object.entries(request.headers)) {
-      if (value) {
-        if (Array.isArray(value)) {
-          value.forEach((v) => headers.append(key, v))
-        } else {
-          headers.set(key, value)
-        }
-      }
-    }
-
-    const betterAuthSession = await auth.api.getSession({
-      headers,
-    })
-
-    if (betterAuthSession && betterAuthSession.user) {
-      request.user = betterAuthSession.user as AuthenticatedUser
-      request.session = {
-        id: betterAuthSession.session.id,
-        userId: betterAuthSession.session.userId,
-        token: (betterAuthSession.session as any).token,
-        expiresAt: new Date(betterAuthSession.session.expiresAt),
-      }
-      return
-    }
-
-    // 2. Direct session fallback from Authorization header or cookie
     let token = ''
     const authHeader = request.headers.authorization
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.substring(7).trim()
-    } else if (request.cookies && request.cookies['better-auth.session_token']) {
-      token = request.cookies['better-auth.session_token']
+    } else if (request.cookies && (request.cookies['session_token'] || request.cookies['better-auth.session_token'])) {
+      token = request.cookies['session_token'] || request.cookies['better-auth.session_token'] || ''
     } else if (request.headers.cookie) {
-      const match = request.headers.cookie.match(/better-auth\.session_token=([^;]+)/)
+      const match = request.headers.cookie.match(/(?:better-auth\.)?session_token=([^;]+)/)
       if (match && match[1]) {
         token = decodeURIComponent(match[1])
       }
     }
 
     if (token) {
-      const direct = await verifyDirectSessionToken(token)
+      const direct = await verifySessionToken(token)
       if (direct) {
         request.user = direct.user
         request.session = direct.session
@@ -140,7 +91,7 @@ export async function requireAuth(request: FastifyRequest, reply: FastifyReply):
 
     reply.status(401).send({
       error: 'UNAUTHORIZED',
-      message: 'You must be signed in to perform this action',
+      message: 'Active session required to play',
     })
   } catch {
     reply.status(401).send({
@@ -154,32 +105,11 @@ export async function getWsSession(
   req: IncomingMessage,
 ): Promise<{ user: AuthenticatedUser; session: AuthenticatedSession } | null> {
   try {
-    const headers = new Headers()
-    for (const [key, value] of Object.entries(req.headers)) {
-      if (value) {
-        if (Array.isArray(value)) {
-          value.forEach((v) => headers.append(key, v))
-        } else {
-          headers.set(key, value)
-        }
-      }
-    }
-
-    // 1. Try Better Auth getSession
-    const betterAuthSession = await auth.api.getSession({ headers })
-    if (betterAuthSession && betterAuthSession.user) {
-      return {
-        user: betterAuthSession.user as AuthenticatedUser,
-        session: betterAuthSession.session as unknown as AuthenticatedSession,
-      }
-    }
-
-    // 2. Extract token from Authorization header or cookie (query param only in dev/test)
     let token = ''
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
       token = req.headers.authorization.substring(7).trim()
     } else if (req.headers.cookie) {
-      const match = req.headers.cookie.match(/better-auth\.session_token=([^;]+)/)
+      const match = req.headers.cookie.match(/(?:better-auth\.)?session_token=([^;]+)/)
       if (match && match[1]) {
         token = decodeURIComponent(match[1])
       }
@@ -194,10 +124,7 @@ export async function getWsSession(
     }
 
     if (token) {
-      const direct = await verifyDirectSessionToken(token)
-      if (direct) {
-        return direct
-      }
+      return await verifySessionToken(token)
     }
 
     return null
@@ -205,4 +132,3 @@ export async function getWsSession(
     return null
   }
 }
-
