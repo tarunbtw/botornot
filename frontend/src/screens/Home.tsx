@@ -12,7 +12,6 @@ import {
 } from 'iconoir-react'
 import { FaqSection } from '../components/FaqSection'
 import { SettingsModal } from '../components/SettingsModal'
-import { DesktopSideBanner, MobileStickyBanner } from '../components/AdBanner'
 
 interface HomeProps {
   coins: number
@@ -56,16 +55,11 @@ export const Home: React.FC<HomeProps> = ({
   return (
     <div className="w-full select-none py-6 sm:py-8 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto space-y-8 sm:space-y-10 transition-colors">
       {/* ============================================================ */}
-      {/* HERO SECTION: Flanked by Desktop Ads (Matching Figma Mockup) */}
+      {/* HERO SECTION                                                 */}
       {/* ============================================================ */}
-      <section className="relative flex items-center justify-between gap-4 xl:gap-6 pt-2 sm:pt-6">
-        {/* Left Desktop Ad Banner (Positioned directly beside Hero) */}
-        <div className="hidden xl:flex shrink-0 w-52 2xl:w-60 justify-start">
-          <DesktopSideBanner side="left" />
-        </div>
-
+      <section className="relative flex flex-col items-center justify-center pt-2 sm:pt-6">
         {/* Center Hero Content */}
-        <div className="flex-1 flex flex-col items-center text-center max-w-lg lg:max-w-xl mx-auto min-w-0">
+        <div className="flex flex-col items-center text-center max-w-lg lg:max-w-xl mx-auto min-w-0">
           {/* Subtle Badge */}
           <div className="inline-flex items-center gap-1.5 bg-[#FFD100] border border-black/20 rounded-full px-3 py-1 shadow-xs mb-5 font-mono text-xs font-bold uppercase tracking-wider text-black">
             <span>2-Minute Social Turing Game</span>
@@ -149,11 +143,6 @@ export const Home: React.FC<HomeProps> = ({
               <div className="font-mono font-black text-lg text-black dark:text-white">{streak}</div>
             </div>
           </div>
-        </div>
-
-        {/* Right Desktop Ad Banner (Positioned directly beside Hero) */}
-        <div className="hidden xl:flex shrink-0 w-52 2xl:w-60 justify-end">
-          <DesktopSideBanner side="right" />
         </div>
       </section>
 
@@ -346,11 +335,6 @@ export const Home: React.FC<HomeProps> = ({
         sound={true}
         onToggleSound={() => {}}
       />
-
-      {/* Mobile Sticky Horizontal Ad Banner (Bottom) */}
-      <div className="xl:hidden">
-        <MobileStickyBanner />
-      </div>
     </div>
   )
 }
